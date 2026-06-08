@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "h5py>=3.16.0",
+    "huggingface-hub[cli]>=1.18.0",
     "matplotlib>=3.10.9",
     "numpy>=2.4.6",
 ]
