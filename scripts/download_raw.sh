@@ -60,7 +60,7 @@ find "$RAW_DIR" -name "video.hevc" | while read -r hevc_path; do
     echo "Remuxing $CHUNK_NAME | $TIMESTAMP | Segment $SEGMENT_NUM..."
     
     # Remux using ffmpeg (copying codec, no re-encoding)
-    ffmpeg -y -i "$hevc_path" -vcodec copy "$OUT_PATH/$SEGMENT_NUM.mkv" -loglevel error
+    ffmpeg -nostdin -y -i "$hevc_path" -vcodec copy "$OUT_PATH/$SEGMENT_NUM.mkv" -loglevel error
     
     if [ $? -eq 0 ]; then
         # If successful, delete the entire raw segment directory
