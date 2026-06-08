@@ -1,6 +1,19 @@
 # run from repo root to download the raw comma2k19 dataset
+DESTRUCTIVE=false
+for arg in "$@"; do
+    case $arg in
+        -d|--destructive)
+            DESTRUCTIVE=true
+            ;;
+    esac
+done
 
-: <<'COMPLETED'
+if [ "$DESTRUCTIVE" = true ]; then
+    echo "!!! DESTRUCTIVE MODE ENABLED: Raw data will be deleted after processing !!!"
+else
+    echo "Safe mode: Raw data will be preserved (except zips)."
+fi
+
 hf download commaai/comma2k19 --repo-type dataset --include "raw_data/*" --local-dir data/comma2k19_raw
 
 RAW_DIR="data/comma2k19_raw/raw_data"
@@ -22,21 +35,19 @@ for zip_file in "$RAW_DIR"/Chunk_*.zip; do
             mv "$RAW_DIR/${filename,,}" "$RAW_DIR/Dataset_$filename"
         fi
         
-        # Delete the zip immediately to free up space
+        # Delete the zip immediately to free up space (always done to avoid redundant data)
         rm "$zip_file"
         echo "Done with $filename."
     fi
 done
 
 echo "All chunks extracted and cleaned up."
-COMPLETED
-
 
 # --- Remuxing and Cleanup Phase ---
 RAW_DIR="data/comma2k19_raw/raw_data"
 PROCESSED_DIR="data/comma2k19"
 
-echo "Starting remuxing to MKV and clearing raw segments..."
+echo "Starting remuxing to MKV..."
 
 # Find all video.hevc files in the raw data
 find "$RAW_DIR" -name "video.hevc" | while read -r hevc_path; do
@@ -63,12 +74,22 @@ find "$RAW_DIR" -name "video.hevc" | while read -r hevc_path; do
     ffmpeg -nostdin -y -i "$hevc_path" -vcodec copy "$OUT_PATH/$SEGMENT_NUM.mkv" -loglevel error
     
     if [ $? -eq 0 ]; then
-        # If successful, delete the entire raw segment directory
-        rm -rf "$SEGMENT_DIR"
-        echo "Successfully remuxed and deleted raw segment $SEGMENT_NUM."
+        # If successful and destructive mode is on, delete the raw segment directory
+        if [ "$DESTRUCTIVE" = true ]; then
+            rm -rf "$SEGMENT_DIR"
+            echo "Successfully remuxed and deleted raw segment $SEGMENT_NUM."
+        else
+            echo "Successfully remuxed segment $SEGMENT_NUM."
+        fi
     else
         echo "ERROR: Failed to remux $hevc_path. Keeping raw file."
     fi
 done
+
+# Final cleanup of the raw dataset folder if destructive
+if [ "$DESTRUCTIVE" = true ]; then
+    echo "Performing final cleanup of raw data folder..."
+    rm -rf "data/comma2k19_raw"
+fi
 
 echo "Processing complete. Final data is in $PROCESSED_DIR"
