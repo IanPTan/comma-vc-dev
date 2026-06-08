@@ -17,10 +17,19 @@ def check_single_mkv(path: pathlib.Path) -> tuple[str, bool, str]:
     ]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-        if result.returncode == 0 and not result.stderr:
+        
+        # Filtering false positives:
+        # We ignore "Application provided invalid, non monotonically increasing dts"
+        # as it is a common side effect of remuxing raw HEVC and doesn't affect decoding.
+        stderr = result.stderr.strip()
+        if stderr:
+            lines = [l for l in stderr.split('\n') if "monotonically increasing dts" not in l]
+            stderr = '\n'.join(lines).strip()
+
+        if result.returncode == 0 and not stderr:
             return (str(path), True, "")
         else:
-            return (str(path), False, result.stderr.strip())
+            return (str(path), False, stderr)
     except subprocess.TimeoutExpired:
         return (str(path), False, "Timeout during integrity check")
     except Exception as e:

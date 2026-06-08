@@ -1,23 +1,32 @@
 import argparse
+import sys
+import os
+from pathlib import Path
 
 import torch
-from torch.utils.data import DataLoader
 
-from dataset import VideoDataset
+# Ensure the repo root is in the python path so we can import our packages
+# when running the script from the root like: python scripts/train.py
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.append(str(REPO_ROOT))
+
+from dataset import DaliDataLoader
 from vqvae import VQVAE
-from train_utils import train, save_final, plot_training_curves, evaluate
+from train import train, save_final, plot_training_curves, evaluate
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Train a VQ-VAE on video segments.")
+    p = argparse.ArgumentParser(description="Train a VQ-VAE on video segments using DALI.")
 
     # Data
     p.add_argument("--data-path", type=str, required=True,
-                   help="Path passed to VideoDataset (file or directory).")
+                   help="Path to the dataset root (e.g. data/comma2k19).")
     p.add_argument("--val-path", type=str, default=None,
                    help="Optional validation data path for periodic eval.")
-    p.add_argument("--batch-size", type=int, default=8)
-    p.add_argument("--num-workers", type=int, default=2)
+    p.add_argument("--batch-size", type=int, default=64)
+    p.add_argument("--num-workers", type=int, default=4)
+    p.add_argument("--clip-frames", type=int, default=200, help="Frames per segment (e.g. 200 for 10s @ 20fps)")
 
     # Model
     p.add_argument("--in-channels", type=int, default=3)
@@ -39,33 +48,32 @@ def main():
     args = parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
+    device_id = device.index if device.index is not None else 0
+    print(f"Using device: {device} (ID: {device_id})")
     if torch.cuda.is_available():
         print(f"GPU: {torch.cuda.get_device_name()}")
 
-    # Data — VideoDataset items are (C, T, H, W); DataLoader batches to (B, C, T, H, W).
-    train_set = VideoDataset(args.data_path)
-    train_loader = DataLoader(
-        train_set,
+    # Data — DaliDataLoader handles batching, GPU decoding, and channel-first transpose.
+    # Returns tensors of shape (B, C, T, H, W).
+    train_loader = DaliDataLoader(
+        args.data_path,
+        clip_frames=args.clip_frames,
         batch_size=args.batch_size,
-        shuffle=True,
-        num_workers=args.num_workers,
-        pin_memory=True,
-        drop_last=True,
+        num_threads=args.num_workers,
+        device_id=device_id
     )
-    print(f"Train segments: {len(train_set):,} | batches/epoch: {len(train_loader)}")
+    print(f"Train batches/epoch: {len(train_loader)}")
 
     val_loader = None
     if args.val_path is not None:
-        val_set = VideoDataset(args.val_path)
-        val_loader = DataLoader(
-            val_set,
+        val_loader = DaliDataLoader(
+            args.val_path,
+            clip_frames=args.clip_frames,
             batch_size=args.batch_size,
-            shuffle=False,
-            num_workers=args.num_workers,
-            pin_memory=True,
+            num_threads=args.num_workers,
+            device_id=device_id
         )
-        print(f"Val segments:   {len(val_set):,}")
+        print(f"Val batches/epoch:   {len(val_loader)}")
 
     # Model + optimizer
     model = VQVAE(
