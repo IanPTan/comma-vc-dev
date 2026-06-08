@@ -1,4 +1,6 @@
 # run from repo root to download the raw comma2k19 dataset
+
+: <<'COMPLETED'
 hf download commaai/comma2k19 --repo-type dataset --include "raw_data/*" --local-dir data/comma2k19_raw
 
 RAW_DIR="data/comma2k19_raw/raw_data"
@@ -27,9 +29,13 @@ for zip_file in "$RAW_DIR"/Chunk_*.zip; do
 done
 
 echo "All chunks extracted and cleaned up."
+COMPLETED
+
 
 # --- Remuxing and Cleanup Phase ---
+RAW_DIR="data/comma2k19_raw/raw_data"
 PROCESSED_DIR="data/comma2k19"
+
 echo "Starting remuxing to MKV and clearing raw segments..."
 
 # Find all video.hevc files in the raw data
