@@ -1,39 +1,51 @@
 import subprocess
 import pathlib
+import re
+import numpy as np
 from concurrent.futures import ProcessPoolExecutor
 from tqdm import tqdm
 
-def check_single_mkv(path: pathlib.Path) -> tuple[str, bool, str]:
+def check_single_mkv(path: pathlib.Path) -> tuple[str, bool, str, int]:
     """
-    Checks the integrity of a single MKV file using ffmpeg.
-    Returns (path, is_valid, error_message)
+    Checks the integrity of a single MKV file using ffmpeg and returns frame count.
+    Returns (path, is_valid, error_message, frame_count)
     """
-    # -v error: only show errors
+    # -v info: needed to see the "frame=" count at the end
     # -i: input file
-    # -f null -: decode and discard output (tests the whole file)
+    # -f null -: decode and discard output
     cmd = [
-        "ffmpeg", "-v", "error", "-i", str(path), 
+        "ffmpeg", "-v", "info", "-i", str(path), 
         "-f", "null", "-", "-threads", "1"
     ]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        # We need stderr for errors and stdout/stderr for the frame count
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
         
-        # Filtering false positives:
-        # We ignore "Application provided invalid, non monotonically increasing dts"
-        # as it is a common side effect of remuxing raw HEVC and doesn't affect decoding.
-        stderr = result.stderr.strip()
-        if stderr:
-            lines = [l for l in stderr.split('\n') if "monotonically increasing dts" not in l]
-            stderr = '\n'.join(lines).strip()
+        # Parse frame count from output (usually at the very end)
+        # Look for "frame=  1200"
+        frame_match = re.search(r"frame=\s*(\d+)", result.stderr)
+        count = int(frame_match.group(1)) if frame_match else 0
 
-        if result.returncode == 0 and not stderr:
-            return (str(path), True, "")
-        else:
-            return (str(path), False, stderr)
+        # Filtering false positives for integrity:
+        stderr = result.stderr.strip()
+        # Look for actual errors, ignoring the usual info/warnings
+        # We only treat it as "corrupted" if there are specific error keywords
+        actual_errors = []
+        for line in stderr.split('\n'):
+            if "monotonically increasing dts" in line:
+                continue
+            if any(err in line.lower() for err in ["error", "invalid", "corrupt", "missing", "unexpected"]):
+                # But ignore the final "video: ... encoder: ..." summary lines
+                if not line.startswith("video:") and not line.startswith("[out#0"):
+                    actual_errors.append(line)
+        
+        is_valid = (result.returncode == 0 and len(actual_errors) == 0)
+        return (str(path), is_valid, "\n".join(actual_errors), count)
+        
     except subprocess.TimeoutExpired:
-        return (str(path), False, "Timeout during integrity check")
+        return (str(path), False, "Timeout during integrity check", 0)
     except Exception as e:
-        return (str(path), False, str(e))
+        return (str(path), False, str(e), 0)
 
 def main():
     data_dir = pathlib.Path("data/comma2k19")
@@ -43,14 +55,17 @@ def main():
         print(f"No MKV files found in {data_dir}")
         return
 
-    print(f"Checking integrity of {len(mkv_files)} MKV files using ffmpeg...")
+    print(f"Checking integrity and frame counts of {len(mkv_files)} MKV files...")
     
     corrupted = []
-    # Use multiple processes to speed up decoding
+    frame_counts = []
+    
     with ProcessPoolExecutor(max_workers=8) as executor:
         results = list(tqdm(executor.map(check_single_mkv, mkv_files), total=len(mkv_files)))
 
-    for path, is_valid, err in results:
+    for path, is_valid, err, count in results:
+        if count > 0:
+            frame_counts.append(count)
         if not is_valid:
             corrupted.append((path, err))
 
@@ -58,10 +73,27 @@ def main():
     if not corrupted:
         print("SUCCESS: All MKV files passed integrity checks!")
     else:
-        print(f"FAILED: Found {len(corrupted)} corrupted files:")
-        for path, err in corrupted:
+        print(f"FAILED: Found {len(corrupted)} corrupted files.")
+        # Only print first 10 corrupted to avoid spam
+        for path, err in corrupted[:10]:
             print(f"  - {path}")
-            print(f"    Error: {err[:200]}...") # Truncate long errors
+            print(f"    Error: {err[:150]}...")
+    
+    if frame_counts:
+        counts = np.array(frame_counts)
+        print("\nFrame Count Statistics:")
+        print(f"  Total Files: {len(counts)}")
+        print(f"  Min:         {np.min(counts)}")
+        print(f"  Max:         {np.max(counts)}")
+        print(f"  Median:      {np.median(counts)}")
+        print(f"  Mean:        {np.mean(counts):.1f}")
+        print(f"  25th Pctl:   {np.percentile(counts, 25)}")
+        print(f"  75th Pctl:   {np.percentile(counts, 75)}")
+        
+        if np.all(counts == counts[0]):
+            print(f"\nUniform Length: All files are exactly {counts[0]} frames.")
+        else:
+            print(f"\nVariable Lengths: Files range from {np.min(counts)} to {np.max(counts)} frames.")
     print("="*50)
 
 if __name__ == "__main__":
