@@ -27,3 +27,42 @@ for zip_file in "$RAW_DIR"/Chunk_*.zip; do
 done
 
 echo "All chunks extracted and cleaned up."
+
+# --- Remuxing and Cleanup Phase ---
+PROCESSED_DIR="data/comma2k19"
+echo "Starting remuxing to MKV and clearing raw segments..."
+
+# Find all video.hevc files in the raw data
+find "$RAW_DIR" -name "video.hevc" | while read -r hevc_path; do
+    # hevc_path looks like: data/comma2k19_raw/raw_data/Dataset_Chunk_1/dongle|timestamp/segment/video.hevc
+    
+    # Extract path components
+    SEGMENT_DIR=$(dirname "$hevc_path")            # .../dongle|timestamp/segment
+    SEGMENT_NUM=$(basename "$SEGMENT_DIR")         # segment (e.g., 10)
+    ROUTE_DIR=$(dirname "$SEGMENT_DIR")            # .../dongle|timestamp
+    ROUTE_FULL_NAME=$(basename "$ROUTE_DIR")       # dongle|timestamp
+    CHUNK_DIR=$(dirname "$ROUTE_DIR")              # .../Dataset_Chunk_1
+    CHUNK_NAME=$(basename "$CHUNK_DIR")            # Dataset_Chunk_1
+    
+    # Extract just the timestamp from dongle|timestamp
+    TIMESTAMP=$(echo "$ROUTE_FULL_NAME" | cut -d'|' -f2)
+    
+    # Define output path: data/comma2k19/Dataset_Chunk_1/timestamp/segment.mkv
+    OUT_PATH="$PROCESSED_DIR/$CHUNK_NAME/$TIMESTAMP"
+    mkdir -p "$OUT_PATH"
+    
+    echo "Remuxing $CHUNK_NAME | $TIMESTAMP | Segment $SEGMENT_NUM..."
+    
+    # Remux using ffmpeg (copying codec, no re-encoding)
+    ffmpeg -y -i "$hevc_path" -vcodec copy "$OUT_PATH/$SEGMENT_NUM.mkv" -loglevel error
+    
+    if [ $? -eq 0 ]; then
+        # If successful, delete the entire raw segment directory
+        rm -rf "$SEGMENT_DIR"
+        echo "Successfully remuxed and deleted raw segment $SEGMENT_NUM."
+    else
+        echo "ERROR: Failed to remux $hevc_path. Keeping raw file."
+    fi
+done
+
+echo "Processing complete. Final data is in $PROCESSED_DIR"
