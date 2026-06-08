@@ -2,6 +2,8 @@ import subprocess
 import pathlib
 import re
 import numpy as np
+import argparse
+import random
 from concurrent.futures import ProcessPoolExecutor
 from tqdm import tqdm
 
@@ -48,15 +50,29 @@ def check_single_mkv(path: pathlib.Path) -> tuple[str, bool, str, int]:
         return (str(path), False, str(e), 0)
 
 def main():
-    data_dir = pathlib.Path("data/comma2k19")
+    parser = argparse.ArgumentParser(description="Check MKV integrity and collect frame count stats.")
+    parser.add_argument("--data-dir", type=str, default="data/comma2k19", help="Directory containing MKV files.")
+    parser.add_argument("-p", "--proportion", type=float, default=1.0, help="Proportion of files to sample (0.0 to 1.0).")
+    args = parser.parse_args()
+
+    data_dir = pathlib.Path(args.data_dir)
     mkv_files = list(data_dir.glob("**/*.mkv"))
     
     if not mkv_files:
         print(f"No MKV files found in {data_dir}")
         return
 
-    print(f"Checking integrity and frame counts of {len(mkv_files)} MKV files...")
-    
+    # Randomly sample based on proportion
+    if 0.0 < args.proportion < 1.0:
+        num_to_sample = max(1, int(len(mkv_files) * args.proportion))
+        print(f"Randomly sampling {num_to_sample} files ({args.proportion*100:.1f}%) from {len(mkv_files)} total files...")
+        mkv_files = random.sample(mkv_files, num_to_sample)
+    elif args.proportion >= 1.0:
+        print(f"Checking all {len(mkv_files)} MKV files...")
+    else:
+        print("Error: Proportion must be greater than 0.0")
+        return
+
     corrupted = []
     frame_counts = []
     
@@ -71,9 +87,9 @@ def main():
 
     print("\n" + "="*50)
     if not corrupted:
-        print("SUCCESS: All MKV files passed integrity checks!")
+        print("SUCCESS: All checked MKV files passed integrity checks!")
     else:
-        print(f"FAILED: Found {len(corrupted)} corrupted files.")
+        print(f"FAILED: Found {len(corrupted)} corrupted files in the sample.")
         # Only print first 10 corrupted to avoid spam
         for path, err in corrupted[:10]:
             print(f"  - {path}")
@@ -81,19 +97,19 @@ def main():
     
     if frame_counts:
         counts = np.array(frame_counts)
-        print("\nFrame Count Statistics:")
-        print(f"  Total Files: {len(counts)}")
-        print(f"  Min:         {np.min(counts)}")
-        print(f"  Max:         {np.max(counts)}")
-        print(f"  Median:      {np.median(counts)}")
-        print(f"  Mean:        {np.mean(counts):.1f}")
-        print(f"  25th Pctl:   {np.percentile(counts, 25)}")
-        print(f"  75th Pctl:   {np.percentile(counts, 75)}")
+        print("\nFrame Count Statistics (from sample):")
+        print(f"  Files Sampled: {len(counts)}")
+        print(f"  Min:           {np.min(counts)}")
+        print(f"  Max:           {np.max(counts)}")
+        print(f"  Median:        {np.median(counts)}")
+        print(f"  Mean:          {np.mean(counts):.1f}")
+        print(f"  25th Pctl:     {np.percentile(counts, 25)}")
+        print(f"  75th Pctl:     {np.percentile(counts, 75)}")
         
         if np.all(counts == counts[0]):
-            print(f"\nUniform Length: All files are exactly {counts[0]} frames.")
+            print(f"\nUniform Length: All sampled files are exactly {counts[0]} frames.")
         else:
-            print(f"\nVariable Lengths: Files range from {np.min(counts)} to {np.max(counts)} frames.")
+            print(f"\nVariable Lengths: Sampled files range from {np.min(counts)} to {np.max(counts)} frames.")
     print("="*50)
 
 if __name__ == "__main__":
