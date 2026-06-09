@@ -149,13 +149,16 @@ def main():
     
     if mkv_files:
         with ProcessPoolExecutor(max_workers=args.workers) as executor:
+            # We still need absolute paths for ffprobe, but we'll store relative ones
             results = list(tqdm(executor.map(get_frame_count, mkv_files), total=len(mkv_files), desc="Counting Frames"))
-            for path, count in results:
-                frame_counts[path] = count
+            for abs_path_str, count in results:
+                # Convert to relative path for portability
+                rel_path = pathlib.Path(abs_path_str).relative_to(processed_root)
+                frame_counts[str(rel_path)] = count
                 
         with open(processed_root / "frame_counts.json", 'w') as f:
             json.dump(frame_counts, f, indent=2)
-        print(f"Saved frame counts for {len(frame_counts)} files.")
+        print(f"Saved relative frame counts for {len(frame_counts)} files.")
 
     print("\nProcessing Complete!")
 

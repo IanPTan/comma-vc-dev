@@ -3,6 +3,9 @@ import numpy as np
 import os
 import tempfile
 import pathlib
+import json
+import subprocess
+import random
 from typing import List, Tuple, Optional
 from nvidia.dali import pipeline_def
 import nvidia.dali.fn as fn
@@ -19,11 +22,13 @@ class DaliClipper:
         batch_size: int = 1,
         num_threads: int = 2,
         device_id: int = 0,
+        shuffle: bool = False,
     ):
         self.clip_list = clip_list
         self.batch_size = batch_size
         self.num_threads = num_threads
         self.device_id = device_id
+        self.shuffle = shuffle
         
         if not clip_list:
             raise ValueError("clip_list cannot be empty")
@@ -54,7 +59,8 @@ class DaliClipper:
                 sequence_length=seq_len,
                 shard_id=0,
                 num_shards=1,
-                random_shuffle=False,
+                random_shuffle=self.shuffle,
+                initial_fill=1024 if self.shuffle else 1,
                 image_type=types.RGB,
                 dtype=types.UINT8,
                 normalized=False
@@ -80,61 +86,89 @@ class DaliClipper:
 
 class DaliDataLoader:
     """
-    High-level loader that discovers videos in the specified structure:
-    root/Dataset_chunk_n/route_id/segment_num.mkv
+    High-level loader that manages reproducible splits and sliding-window indexing.
     """
     def __init__(
         self,
         dataset_path: str,
-        clip_frames: int = 200,  # e.g., 10 seconds at 20fps
+        split_path: str = "dataset_split.json",
+        mode: str = "train",  # "train" or "val"
+        val_split: float = 0.1,
+        clip_frames: int = 200,
+        stride: Optional[int] = None, # If None, stride = clip_frames (no overlap)
         batch_size: int = 64,
         num_threads: int = 4,
         device_id: int = 0,
-        limit_clips: Optional[int] = None,
-        frames_per_segment: int = 1200, # Default for comma segments (60s @ 20fps)
+        seed: int = 42,
+        shuffle: bool = True,
     ):
         self.dataset_path = pathlib.Path(dataset_path)
+        self.split_path = pathlib.Path(split_path)
         self.clip_frames = clip_frames
+        self.stride = stride if stride is not None else clip_frames
         self.batch_size = batch_size
         self.num_threads = num_threads
         self.device_id = device_id
-        
-        # Discover all .mkv files
-        # Pattern: Dataset_chunk_*/route_id/segment.mkv
-        self.mkv_paths = sorted(list(self.dataset_path.glob("Dataset_chunk_*/*/*.mkv")))
-        
-        if not self.mkv_paths:
-            print(f"Warning: No .mkv files found in {dataset_path}")
-            self.clipper = None
-            return
+        self.seed = seed
+        self.shuffle = (mode == "train") and shuffle
 
-        # Create clips (for now, let's take one random 10s clip per video)
-        # In a real scenario, you might want to sample multiple windows per video
-        clip_list = []
-        for path in self.mkv_paths:
-            if frames_per_segment > clip_frames:
-                # Random start frame within the segment
-                start = np.random.randint(0, frames_per_segment - clip_frames)
-                end = start + clip_frames
-                clip_list.append((str(path), start, end))
-            else:
-                # If segment is too short, just take what we can (DALI will pad)
-                clip_list.append((str(path), 0, frames_per_segment))
+        # 1. Discover MKVs and their frame counts via JSON metadata
+        frame_counts = self._load_metadata()
+        mkv_rel_paths = sorted(list(frame_counts.keys()))
 
-        if limit_clips:
-            clip_list = clip_list[:limit_clips]
+        # 2. Build the global window list OR load from split
+        if self.split_path.exists():
+            print(f"Loading split from {self.split_path}...")
+            with open(self.split_path, 'r') as f:
+                split_data = json.load(f)
+            train_clips = split_data['train']
+            val_clips = split_data['val']
+        else:
+            print(f"Generating new split at {self.split_path}...")
+            all_clips = []
+            for rel_path in mkv_rel_paths:
+                n_frames = frame_counts.get(rel_path, 0)
+                abs_path = str(self.dataset_path / rel_path)
+                # Create windows for this file
+                for start in range(0, n_frames - self.clip_frames + 1, self.stride):
+                    all_clips.append((abs_path, start, start + self.clip_frames))
+            
+            # Shuffle and split
+            random.seed(self.seed)
+            random.shuffle(all_clips)
+            split_idx = int(len(all_clips) * (1.0 - val_split))
+            train_clips = all_clips[:split_idx]
+            val_clips = all_clips[split_idx:]
+            
+            # Save for later
+            with open(self.split_path, 'w') as f:
+                json.dump({'train': train_clips, 'val': val_clips}, f)
+
+        # 3. Select the subset based on mode
+        selected_clips = train_clips if mode == "train" else val_clips
+        print(f"Initialized DaliDataLoader ({mode}): {len(selected_clips)} clips found.")
 
         self.clipper = DaliClipper(
-            clip_list=clip_list,
+            clip_list=selected_clips,
             batch_size=batch_size,
             num_threads=num_threads,
-            device_id=device_id
+            device_id=device_id,
+            shuffle=self.shuffle
         )
 
+    def _load_metadata(self) -> dict:
+        metadata_path = self.dataset_path / "frame_counts.json"
+        if not metadata_path.exists():
+            raise FileNotFoundError(
+                f"frame_counts.json not found in {self.dataset_path}. "
+                "Please run the download/processing script to generate it."
+            )
+            
+        with open(metadata_path, 'r') as f:
+            return json.load(f)
+
     def __iter__(self):
-        if self.clipper:
-            return iter(self.clipper)
-        return iter([])
+        return iter(self.clipper)
 
     def __len__(self):
-        return len(self.clipper) if self.clipper else 0
+        return len(self.clipper)
