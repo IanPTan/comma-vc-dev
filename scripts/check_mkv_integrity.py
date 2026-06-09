@@ -23,10 +23,10 @@ def check_single_mkv(path: pathlib.Path) -> tuple[str, bool, str, int]:
         # We need stderr for errors and stdout/stderr for the frame count
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
         
-        # Parse frame count from output (usually at the very end)
-        # Look for "frame=  1200"
-        frame_match = re.search(r"frame=\s*(\d+)", result.stderr)
-        count = int(frame_match.group(1)) if frame_match else 0
+        # Parse the final frame count from ffmpeg's progress output.
+        # ffmpeg prints multiple `frame=` updates, so we need the last one.
+        frame_matches = re.findall(r"frame=\s*(\d+)", result.stderr)
+        count = int(frame_matches[-1]) if frame_matches else 0
 
         # Filtering false positives for integrity:
         stderr = result.stderr.strip()
@@ -74,6 +74,7 @@ def main():
         return
 
     corrupted = []
+    parse_failures = []
     frame_counts = []
     
     with ProcessPoolExecutor(max_workers=8) as executor:
@@ -82,6 +83,8 @@ def main():
     for path, is_valid, err, count in results:
         if count > 0:
             frame_counts.append(count)
+        elif is_valid:
+            parse_failures.append(path)
         if not is_valid:
             corrupted.append((path, err))
 
@@ -110,6 +113,8 @@ def main():
             print(f"\nUniform Length: All sampled files are exactly {counts[0]} frames.")
         else:
             print(f"\nVariable Lengths: Sampled files range from {np.min(counts)} to {np.max(counts)} frames.")
+    if parse_failures:
+        print(f"\nWARNING: Could not parse frame counts for {len(parse_failures)} valid files.")
     print("="*50)
 
 if __name__ == "__main__":
