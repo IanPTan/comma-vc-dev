@@ -25,7 +25,7 @@ def parse_args():
     p.add_argument("--val-path", type=str, default=None,
                    help="Optional validation data path for periodic eval.")
     p.add_argument("--batch-size", type=int, default=64)
-    p.add_argument("--num-workers", type=int, default=4)
+    p.add_argument("-w", "--workers", type=int, default=4, help="Number of DALI threads.")
     p.add_argument("--clip-frames", type=int, default=200, help="Frames per segment (e.g. 200 for 10s @ 20fps)")
 
     # Model
@@ -59,7 +59,7 @@ def main():
         args.data_path,
         clip_frames=args.clip_frames,
         batch_size=args.batch_size,
-        num_threads=args.num_workers,
+        num_threads=args.workers,
         device_id=device_id
     )
     print(f"Train batches/epoch: {len(train_loader)}")
@@ -70,7 +70,7 @@ def main():
             args.val_path,
             clip_frames=args.clip_frames,
             batch_size=args.batch_size,
-            num_threads=args.num_workers,
+            num_threads=args.workers,
             device_id=device_id
         )
         print(f"Val batches/epoch:   {len(val_loader)}")

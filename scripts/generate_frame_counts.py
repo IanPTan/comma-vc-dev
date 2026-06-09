@@ -24,7 +24,7 @@ def get_frame_count(mkv_path: pathlib.Path) -> Tuple[str, int]:
 def main():
     parser = argparse.ArgumentParser(description="Generate frame_counts.json for an existing dataset.")
     parser.add_argument("--data-dir", type=str, default="data/comma2k19", help="Path to the processed dataset root.")
-    parser.add_argument("--workers", type=int, default=8, help="Number of parallel workers.")
+    parser.add_argument("-w", "--workers", type=int, default=8, help="Number of parallel workers.")
     args = parser.parse_args()
 
     processed_root = pathlib.Path(args.data_dir)

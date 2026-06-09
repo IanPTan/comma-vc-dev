@@ -54,7 +54,7 @@ def main():
     parser = argparse.ArgumentParser(description="Check MKV integrity and collect frame count stats.")
     parser.add_argument("--data-dir", type=str, default="data/comma2k19", help="Directory containing MKV files.")
     parser.add_argument("-p", "--proportion", type=float, default=1.0, help="Proportion of files to sample (0.0 to 1.0).")
-    parser.add_argument("--workers", type=int, default=8, help="Number of parallel workers.")
+    parser.add_argument("-w", "--workers", type=int, default=8, help="Number of parallel workers.")
     args = parser.parse_args()
 
     data_dir = pathlib.Path(args.data_dir)

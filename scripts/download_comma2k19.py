@@ -65,7 +65,7 @@ def get_frame_count(mkv_path: pathlib.Path) -> Tuple[str, int]:
 def main():
     parser = argparse.ArgumentParser(description="Download and process comma2k19 dataset.")
     parser.add_argument("--destructive", "-d", action="store_true", help="Delete raw data after processing to save space.")
-    parser.add_argument("--workers", type=int, default=8, help="Number of parallel workers for remuxing.")
+    parser.add_argument("--workers", "-w", type=int, default=8, help="Number of parallel workers for remuxing.")
     args = parser.parse_args()
 
     # 1. Setup Paths
