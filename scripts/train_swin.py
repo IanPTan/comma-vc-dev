@@ -59,6 +59,14 @@ def parse_args():
                    help="Optional checkpoint path to resume from.")
     p.add_argument("--max-batches-per-epoch", type=int, default=None,
                    help="Cap batches per epoch (smoke test mode).")
+    p.add_argument("--compile", action="store_true",
+                   help="JIT-compile the model with torch.compile (first step "
+                        "is slow, subsequent steps are 15-35%% faster).")
+    p.add_argument("--compile-mode", type=str, default="default",
+                   choices=["default", "reduce-overhead", "max-autotune"],
+                   help="torch.compile mode. 'reduce-overhead' is usually a "
+                        "good middle ground; 'max-autotune' compiles slower "
+                        "but can be a bit faster.")
     return p.parse_args()
 
 
@@ -96,13 +104,24 @@ def main():
     n_dec = sum(p.numel() for p in model.decoder.parameters())
     print(f"model: {n_params/1e6:.2f}M params  (enc {n_enc/1e6:.2f}M, dec {n_dec/1e6:.2f}M)")
 
+    if args.compile:
+        if device.type != "cuda":
+            print("warn: --compile requested but device is CPU; skipping.")
+        else:
+            print(f"compiling model (mode={args.compile_mode}) — first step will be slow...")
+            model = torch.compile(model, mode=args.compile_mode)
+
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=args.lr, weight_decay=args.weight_decay,
     )
 
     if args.resume:
         ckpt = torch.load(args.resume, map_location=device)
-        model.load_state_dict(ckpt["model_state_dict"])
+        sd = ckpt["model_state_dict"]
+        # Tolerate checkpoints saved with the compile prefix.
+        sd = {k.removeprefix("_orig_mod."): v for k, v in sd.items()}
+        # Load into the un-compiled module so the wrapper sees fresh weights.
+        getattr(model, "_orig_mod", model).load_state_dict(sd)
         optimizer.load_state_dict(ckpt["optimizer_state_dict"])
         print(f"Resumed from {args.resume} (epoch {ckpt.get('epoch', '?')})")
 

@@ -16,6 +16,12 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 
+def _raw_model(m: torch.nn.Module) -> torch.nn.Module:
+    """Return the un-compiled module so state_dict keys don't carry the
+    `_orig_mod.` prefix that torch.compile adds."""
+    return getattr(m, "_orig_mod", m)
+
+
 def _resize_clip(clip: torch.Tensor, size: int) -> torch.Tensor:
     """(B, C, T, H, W) uint8/float -> (B, C, T, size, size) float in [0, 1]."""
     B, C, T, H, W = clip.shape
@@ -115,7 +121,7 @@ def train_swin(
             ckpt = os.path.join(save_dir, f"swin_epoch{epoch+1}.pt")
             torch.save({
                 "epoch": epoch + 1,
-                "model_state_dict": model.state_dict(),
+                "model_state_dict": _raw_model(model).state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
                 "history": history,
             }, ckpt)
@@ -128,7 +134,7 @@ def save_final_swin(model, optimizer, history, num_epochs, save_dir):
     final_path = os.path.join(save_dir, "swin_final.pt")
     torch.save({
         "epoch": num_epochs,
-        "model_state_dict": model.state_dict(),
+        "model_state_dict": _raw_model(model).state_dict(),
         "optimizer_state_dict": optimizer.state_dict(),
         "history": history,
     }, final_path)
