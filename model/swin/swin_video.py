@@ -372,15 +372,176 @@ class SwinVideoEncoder(nn.Module):
 
 
 # --------------------------------------------------------------------------- #
+# Decoder: mirrors the encoder so we can train end-to-end with pixel MSE.
+# --------------------------------------------------------------------------- #
+class PatchExpand(nn.Module):
+    """Inverse of PatchMerging — double H and W, halve channels."""
+
+    def __init__(self, dim: int):
+        super().__init__()
+        # dim -> 2*dim, then pixel-shuffle into 2x2 spatial blocks -> dim/2 per token.
+        self.expand = nn.Linear(dim, 2 * dim, bias=False)
+        self.norm = nn.LayerNorm(dim // 2)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # x: (B, T, H, W, C)
+        B, T, H, W, C = x.shape
+        x = self.expand(x)                               # (B, T, H, W, 2C)
+        x = x.view(B, T, H, W, 2, 2, C // 2)
+        x = x.permute(0, 1, 2, 4, 3, 5, 6).contiguous()  # (B, T, H, 2, W, 2, C/2)
+        x = x.view(B, T, H * 2, W * 2, C // 2)
+        return self.norm(x)
+
+
+class SwinVideoDecoder(nn.Module):
+    """
+    Symmetric Swin decoder. Takes encoder feature tokens and reconstructs the
+    input clip in pixel space. Architecture mirror of `SwinVideoEncoder`:
+        - PatchExpand to undo PatchMerging at each stage.
+        - SwinStage3D (no downsample) to refine after each expand.
+        - ConvTranspose3d to undo the initial 3D patch embedding.
+    """
+
+    def __init__(
+        self,
+        encoder_feat_size: Tuple[int, int, int],  # (T', H', W') after all encoder stages
+        encoder_out_dim: int,                     # C_out of encoder
+        out_channels: int,
+        patch_size: Tuple[int, int, int],
+        window_size: Tuple[int, int, int],
+        embed_dim: int,                           # encoder's embed_dim
+        depths: Tuple[int, ...],                  # encoder depths (used reversed)
+        num_heads: Tuple[int, ...],               # encoder num_heads (used reversed)
+        mlp_ratio: float = 4.0,
+    ):
+        super().__init__()
+        n_stages = len(depths)
+        self.window_size = window_size
+
+        # Build the reverse chain: start at deepest feat size & dim, expand spatial
+        # back up at each stage, halve channels, run a Swin block.
+        cur_T, cur_H, cur_W = encoder_feat_size
+        dim = encoder_out_dim
+
+        self.stages = nn.ModuleList()
+        self.expands = nn.ModuleList()
+
+        # We have (n_stages - 1) patch-merges in the encoder -> same number of expands here.
+        # Order from deep -> shallow.
+        rev_depths = list(reversed(depths))
+        rev_heads = list(reversed(num_heads))
+
+        for i in range(n_stages):
+            # Refine current resolution with a Swin stage (no downsample).
+            self.stages.append(SwinStage3D(
+                dim=dim,
+                depth=rev_depths[i],
+                num_heads=rev_heads[i],
+                window_size=window_size,
+                feat_size=(cur_T, cur_H, cur_W),
+                downsample=False,
+                mlp_ratio=mlp_ratio,
+            ))
+            # Then expand (unless this is the last stage, which equals embed_dim).
+            if i < n_stages - 1:
+                self.expands.append(PatchExpand(dim))
+                dim //= 2
+                cur_H *= 2
+                cur_W *= 2
+
+        assert dim == embed_dim, f"decoder dim ended at {dim}, expected {embed_dim}"
+        self.final_norm = nn.LayerNorm(dim)
+
+        # Undo the 3D patch embedding with a transposed conv: (T, H, W) tokens of
+        # dim `embed_dim` -> (T*pT, H*pH, W*pW) pixels of `out_channels`.
+        self.unpatch = nn.ConvTranspose3d(
+            embed_dim, out_channels,
+            kernel_size=patch_size, stride=patch_size,
+        )
+
+    def forward(self, feats: torch.Tensor) -> torch.Tensor:
+        # feats: (B, T', H', W', C_out) from encoder
+        x = feats
+        for i, stage in enumerate(self.stages):
+            x = stage(x)
+            if i < len(self.expands):
+                x = self.expands[i](x)
+        x = self.final_norm(x)                       # (B, T, H, W, C)
+        x = x.permute(0, 4, 1, 2, 3).contiguous()    # (B, C, T, H, W)
+        return self.unpatch(x)
+
+
+# --------------------------------------------------------------------------- #
+# Full autoencoder wrapper (Swin encoder + symmetric Swin decoder).
+# This is the standalone trainable model — no masking, no MAE, no codebook.
+# --------------------------------------------------------------------------- #
+class SwinVideoAutoencoder(nn.Module):
+    def __init__(
+        self,
+        input_size: Tuple[int, int, int] = (16, 256, 256),
+        in_channels: int = 3,
+        patch_size: Tuple[int, int, int] = (2, 16, 16),
+        window_size: Tuple[int, int, int] = (8, 4, 4),
+        embed_dim: int = 96,
+        depths: Tuple[int, ...] = (2, 2, 6, 2),
+        num_heads: Tuple[int, ...] = (3, 6, 12, 24),
+        mlp_ratio: float = 4.0,
+    ):
+        super().__init__()
+        self.encoder = SwinVideoEncoder(
+            input_size=input_size, in_channels=in_channels,
+            patch_size=patch_size, window_size=window_size,
+            embed_dim=embed_dim, depths=depths, num_heads=num_heads,
+            mlp_ratio=mlp_ratio,
+        )
+
+        # Feature-map size at encoder output (used to size the decoder).
+        T = input_size[0] // patch_size[0]
+        H = input_size[1] // patch_size[1]
+        W = input_size[2] // patch_size[2]
+        for _ in range(len(depths) - 1):
+            H //= 2
+            W //= 2
+
+        self.decoder = SwinVideoDecoder(
+            encoder_feat_size=(T, H, W),
+            encoder_out_dim=self.encoder.out_dim,
+            out_channels=in_channels,
+            patch_size=patch_size,
+            window_size=window_size,
+            embed_dim=embed_dim,
+            depths=depths,
+            num_heads=num_heads,
+            mlp_ratio=mlp_ratio,
+        )
+
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Returns:
+            recon: (B, C, T, H, W) reconstruction
+            loss:  scalar MSE between input and reconstruction
+        """
+        feats = self.encoder(x)
+        recon = self.decoder(feats)
+        loss = F.mse_loss(recon, x)
+        return recon, loss
+
+    def encode(self, x: torch.Tensor) -> torch.Tensor:
+        return self.encoder(x)
+
+
+# --------------------------------------------------------------------------- #
 # Tiny smoke test
 # --------------------------------------------------------------------------- #
 if __name__ == "__main__":
-    # Sanity check: full default config on a small clip.
-    model = SwinVideoEncoder(input_size=(16, 256, 256))
+    model = SwinVideoAutoencoder(input_size=(16, 256, 256))
     x = torch.randn(1, 3, 16, 256, 256)
     with torch.no_grad():
-        y = model(x)
+        recon, loss = model(x)
     n_params = sum(p.numel() for p in model.parameters())
-    print(f"params:  {n_params/1e6:.1f}M")
+    n_enc = sum(p.numel() for p in model.encoder.parameters())
+    n_dec = sum(p.numel() for p in model.decoder.parameters())
+    print(f"params:  {n_params/1e6:.2f}M  (enc {n_enc/1e6:.2f}M, dec {n_dec/1e6:.2f}M)")
     print(f"input:   {tuple(x.shape)}")
-    print(f"output:  {tuple(y.shape)}  (B, T', H', W', C)")
+    print(f"recon:   {tuple(recon.shape)}")
+    print(f"loss:    {loss.item():.4f}")

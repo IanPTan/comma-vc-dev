@@ -1,3 +1,3 @@
-from .swin_video import SwinVideoEncoder
+from .swin_video import SwinVideoEncoder, SwinVideoDecoder, SwinVideoAutoencoder
 
-__all__ = ["SwinVideoEncoder"]
+__all__ = ["SwinVideoEncoder", "SwinVideoDecoder", "SwinVideoAutoencoder"]

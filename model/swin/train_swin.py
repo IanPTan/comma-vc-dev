@@ -1,15 +1,14 @@
 """
-Run the Swin video encoder on comma2k19 clips loaded via DALI.
+Train the Swin Video Autoencoder on comma2k19 clips loaded via DALI.
 
-This is the "encoder-only" half of arxiv 2212.13805 (Swin MAE) — no masking,
-no MAE decoder. It loads a batch from the DaliDataLoader, resizes each frame
-to the target spatial size, and runs a single forward pass through the Swin
-encoder so we can verify shapes / param counts end-to-end on real data.
+Model: `SwinVideoAutoencoder` = Swin encoder + symmetric Swin decoder, trained
+end-to-end with pixel MSE. No masking, no MAE, no codebook — a standalone
+trainable model.
 
 Example:
     python model/swin/train_swin.py \\
         --data-path data/comma2k19 \\
-        --batch-size 2 --clip-frames 16 --frame-size 256
+        --batch-size 4 --clip-frames 16 --frame-size 256 --num-epochs 30
 """
 
 import argparse
@@ -17,48 +16,45 @@ import sys
 from pathlib import Path
 
 import torch
-import torch.nn.functional as F
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.append(str(REPO_ROOT))
 
 from dataset import DaliDataLoader
-from model.swin.swin_video import SwinVideoEncoder
+from model.swin.swin_video import SwinVideoAutoencoder
+from train import train_swin, save_final_swin
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Forward pass: Swin video encoder on comma2k19.")
-    p.add_argument("--data-path", type=str, required=True,
-                   help="Path to dataset root (e.g. data/comma2k19).")
-    p.add_argument("--batch-size", type=int, default=2)
+    p = argparse.ArgumentParser(description="Train Swin video autoencoder on comma2k19.")
+    # Data
+    p.add_argument("--data-path", type=str, required=True)
+    p.add_argument("--batch-size", type=int, default=4)
     p.add_argument("-w", "--workers", type=int, default=4)
     p.add_argument("--clip-frames", type=int, default=16,
                    help="Frames per clip. Must be divisible by patch_t * window_t.")
-    p.add_argument("--frame-size", type=int, default=256,
-                   help="Resized HxW per frame (square).")
+    p.add_argument("--frame-size", type=int, default=256)
 
-    # Encoder
+    # Model
     p.add_argument("--patch-t", type=int, default=2)
-    p.add_argument("--patch-s", type=int, default=16, help="Spatial patch size (cell = 16x16).")
+    p.add_argument("--patch-s", type=int, default=16, help="16x16 per cell.")
     p.add_argument("--window-t", type=int, default=8)
-    p.add_argument("--window-s", type=int, default=4, help="4x4 cells per spatial window.")
+    p.add_argument("--window-s", type=int, default=4, help="4x4 cells per window.")
     p.add_argument("--embed-dim", type=int, default=96)
     p.add_argument("--depths", type=int, nargs="+", default=[2, 2, 6, 2])
     p.add_argument("--num-heads", type=int, nargs="+", default=[3, 6, 12, 24])
 
-    p.add_argument("--num-batches", type=int, default=1,
-                   help="How many batches to run through the encoder.")
+    # Optim / training
+    p.add_argument("--lr", type=float, default=3e-4)
+    p.add_argument("--weight-decay", type=float, default=0.05)
+    p.add_argument("--grad-clip", type=float, default=1.0)
+    p.add_argument("--num-epochs", type=int, default=30)
+    p.add_argument("--save-dir", type=str, default="checkpoints/swin")
+    p.add_argument("--save-every", type=int, default=5)
+    p.add_argument("--resume", type=str, default=None,
+                   help="Optional checkpoint path to resume from.")
     return p.parse_args()
-
-
-def resize_clip(video: torch.Tensor, size: int) -> torch.Tensor:
-    """(B, C, T, H, W) uint8 -> (B, C, T, size, size) float in [0, 1]."""
-    B, C, T, H, W = video.shape
-    v = video.permute(0, 2, 1, 3, 4).reshape(B * T, C, H, W).float() / 255.0
-    v = F.interpolate(v, size=(size, size), mode="bilinear", align_corners=False)
-    v = v.reshape(B, T, C, size, size).permute(0, 2, 1, 3, 4).contiguous()
-    return v
 
 
 def main():
@@ -77,9 +73,9 @@ def main():
         num_threads=args.workers,
         device_id=device_id,
     )
-    print(f"batches available: {len(loader)}")
+    print(f"batches/epoch: {len(loader)}")
 
-    model = SwinVideoEncoder(
+    model = SwinVideoAutoencoder(
         input_size=(args.clip_frames, args.frame_size, args.frame_size),
         in_channels=3,
         patch_size=(args.patch_t, args.patch_s, args.patch_s),
@@ -88,19 +84,34 @@ def main():
         depths=tuple(args.depths),
         num_heads=tuple(args.num_heads),
     ).to(device)
-    model.eval()
 
     n_params = sum(p.numel() for p in model.parameters())
-    print(f"model params: {n_params/1e6:.2f}M  |  out dim: {model.out_dim}")
+    n_enc = sum(p.numel() for p in model.encoder.parameters())
+    n_dec = sum(p.numel() for p in model.decoder.parameters())
+    print(f"model: {n_params/1e6:.2f}M params  (enc {n_enc/1e6:.2f}M, dec {n_dec/1e6:.2f}M)")
 
-    for i, batch in enumerate(loader):
-        if i >= args.num_batches:
-            break
-        # batch: (B, C, T, H, W) uint8 on GPU
-        clip = resize_clip(batch.to(device), args.frame_size)
-        with torch.no_grad():
-            feats = model(clip)
-        print(f"[batch {i}] in {tuple(clip.shape)} -> out {tuple(feats.shape)}")
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=args.lr, weight_decay=args.weight_decay,
+    )
+
+    if args.resume:
+        ckpt = torch.load(args.resume, map_location=device)
+        model.load_state_dict(ckpt["model_state_dict"])
+        optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+        print(f"Resumed from {args.resume} (epoch {ckpt.get('epoch', '?')})")
+
+    history = train_swin(
+        model=model,
+        train_loader=loader,
+        optimizer=optimizer,
+        device=device,
+        num_epochs=args.num_epochs,
+        save_dir=args.save_dir,
+        frame_size=args.frame_size,
+        save_every=args.save_every,
+        grad_clip=args.grad_clip,
+    )
+    save_final_swin(model, optimizer, history, args.num_epochs, args.save_dir)
 
 
 if __name__ == "__main__":
