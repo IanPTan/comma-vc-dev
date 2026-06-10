@@ -103,6 +103,7 @@ def main():
     if args.val_path is not None:
         val_loader = DaliDataLoader(
             args.val_path,
+            mode="val",
             clip_frames=args.clip_frames,
             batch_size=args.batch_size,
             num_threads=args.workers,
