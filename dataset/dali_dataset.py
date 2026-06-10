@@ -6,6 +6,7 @@ import pathlib
 import json
 import subprocess
 import random
+from itertools import islice
 from typing import List, Tuple, Optional
 from nvidia.dali import pipeline_def
 import nvidia.dali.fn as fn
@@ -85,7 +86,9 @@ class DaliClipper:
         return pipe
 
     def __iter__(self):
-        for data in self.iterator:
+        # The experimental video reader + DALIGenericIterator(auto_reset=True)
+        # overruns the epoch boundary reported by epoch_size(), so cap explicitly.
+        for data in islice(self.iterator, len(self)):
             yield data[0]["video"]
 
     def __len__(self):
