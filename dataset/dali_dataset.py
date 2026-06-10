@@ -104,6 +104,10 @@ class DaliDataLoader:
         device_id: int = 0,
         seed: int = 42,
         shuffle: bool = True,
+        # frame_counts.json sometimes overcounts what DALI's GPU video decoder
+        # actually sees (keyframe-aware seek vs naive count). Subtract this
+        # many frames from each file's reported length before windowing.
+        end_safety_margin: int = 30,
     ):
         self.dataset_path = pathlib.Path(dataset_path)
         self.split_path = pathlib.Path(split_path)
@@ -114,6 +118,7 @@ class DaliDataLoader:
         self.device_id = device_id
         self.seed = seed
         self.shuffle = (mode == "train") and shuffle
+        self.end_safety_margin = end_safety_margin
 
         # 1. Discover MKVs and their frame counts via JSON metadata
         frame_counts = self._load_metadata()
@@ -127,13 +132,17 @@ class DaliDataLoader:
             train_clips = split_data['train']
             val_clips = split_data['val']
         else:
-            print(f"Generating new split at {self.split_path}...")
+            print(f"Generating new split at {self.split_path} "
+                  f"(safety margin {end_safety_margin} frames)...")
             all_clips = []
             for rel_path in mkv_rel_paths:
                 n_frames = frame_counts.get(rel_path, 0)
+                usable = n_frames - end_safety_margin
+                if usable < self.clip_frames:
+                    continue
                 abs_path = str(self.dataset_path / rel_path)
-                # Create windows for this file
-                for start in range(0, n_frames - self.clip_frames + 1, self.stride):
+                # Window starts: last start must satisfy start + clip_frames <= usable.
+                for start in range(0, usable - self.clip_frames + 1, self.stride):
                     all_clips.append((abs_path, start, start + self.clip_frames))
             
             # Shuffle and split
