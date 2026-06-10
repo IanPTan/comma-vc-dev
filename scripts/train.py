@@ -18,11 +18,14 @@ from pathlib import Path
 
 import torch
 
-# Ensure the repo root is in the python path so we can import our packages
-# when running the script from the root like: python scripts/train.py
-REPO_ROOT = Path(__file__).resolve().parent.parent
+# Ensure the repo root is searched BEFORE the script's own directory.
+# Otherwise `from train import ...` resolves to this file (scripts/train.py)
+# instead of the `train/` package one level up, causing a circular import.
+HERE = Path(__file__).resolve().parent
+REPO_ROOT = HERE.parent
+sys.path = [p for p in sys.path if Path(p).resolve() != HERE]
 if str(REPO_ROOT) not in sys.path:
-    sys.path.append(str(REPO_ROOT))
+    sys.path.insert(0, str(REPO_ROOT))
 
 from dataset import DaliDataLoader
 from model.swin.swin_video import SwinVideoAutoencoder
