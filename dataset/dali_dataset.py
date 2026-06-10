@@ -14,67 +14,65 @@ from nvidia.dali.plugin.pytorch import DALIGenericIterator, LastBatchPolicy
 
 class DaliClipper:
     """
-    Low-level DALI pipeline wrapper for loading specific video clips.
+    Low-level DALI pipeline wrapper. Uses `fn.experimental.readers.video`,
+    which is frame-accurate (unlike the legacy reader's index-based count
+    that miscounts HEVC files in comma2k19).
     """
     def __init__(
         self,
-        clip_list: List[Tuple[str, int, int]],  # (path, start_frame, end_frame)
+        file_paths: List[str],          # one entry per .mkv to draw clips from
+        clip_frames: int,               # frames per sequence
         batch_size: int = 1,
         num_threads: int = 2,
         device_id: int = 0,
         shuffle: bool = False,
+        step: Optional[int] = None,     # stride between consecutive clip starts
+                                        # in a file; defaults to clip_frames
+                                        # (= non-overlapping windows).
     ):
-        self.clip_list = clip_list
+        if not file_paths:
+            raise ValueError("file_paths cannot be empty")
+        self.file_paths = [os.path.abspath(p) for p in file_paths]
+        self.clip_frames = clip_frames
         self.batch_size = batch_size
         self.num_threads = num_threads
         self.device_id = device_id
         self.shuffle = shuffle
-        
-        if not clip_list:
-            raise ValueError("clip_list cannot be empty")
-
-        # Create temporary file list for DALI
-        self._file_list_tmp = tempfile.NamedTemporaryFile(mode='w', delete=False)
-        for path, start, end in self.clip_list:
-            self._file_list_tmp.write(f"{os.path.abspath(path)} 0 {start} {end}\n")
-        self._file_list_tmp.close()
+        self.step = step if step is not None else clip_frames
 
         self.pipeline = self._build_pipeline()
         self.iterator = DALIGenericIterator(
             [self.pipeline],
             output_map=["video"],
             last_batch_policy=LastBatchPolicy.PARTIAL,
-            auto_reset=True
+            auto_reset=True,
         )
+        # `epoch_size` is reported by the reader after build.
+        try:
+            self._epoch_clips = int(self.pipeline.epoch_size("reader"))
+        except Exception:
+            self._epoch_clips = None
 
     def _build_pipeline(self):
-        first_start, first_end = self.clip_list[0][1], self.clip_list[0][2]
-        seq_len = first_end - first_start
-
         @pipeline_def(batch_size=self.batch_size, num_threads=self.num_threads, device_id=self.device_id)
         def video_pipe():
-            # When file_list rows have a label column, fn.readers.video returns
-            # (video, labels). We only care about the video here.
-            out = fn.readers.video(
+            out = fn.experimental.readers.video(
                 device="gpu",
-                file_list=self._file_list_tmp.name,
-                sequence_length=seq_len,
-                shard_id=0,
-                num_shards=1,
+                filenames=self.file_paths,
+                sequence_length=self.clip_frames,
+                step=self.step,
+                stride=1,
                 random_shuffle=self.shuffle,
                 initial_fill=1024 if self.shuffle else 1,
-                image_type=types.RGB,
-                dtype=types.UINT8,
-                normalized=False,
-                # New DALI default; silences the deprecation warning and
-                # gives a more accurate per-file frame count.
-                file_list_include_preceding_frame=True,
+                shard_id=0,
+                num_shards=1,
+                pad_sequences=False,        # drop tail clips that are short
+                name="reader",
             )
             video = out[0] if isinstance(out, (tuple, list)) else out
             # (F, H, W, C) -> (C, F, H, W)
-            video = fn.transpose(video, perm=[3, 0, 1, 2])
-            return video
-        
+            return fn.transpose(video, perm=[3, 0, 1, 2])
+
         pipe = video_pipe()
         pipe.build()
         return pipe
@@ -83,12 +81,11 @@ class DaliClipper:
         for data in self.iterator:
             yield data[0]["video"]
 
-    def __del__(self):
-        if hasattr(self, '_file_list_tmp') and os.path.exists(self._file_list_tmp.name):
-            os.unlink(self._file_list_tmp.name)
-
     def __len__(self):
-        return (len(self.clip_list) + self.batch_size - 1) // self.batch_size
+        # Number of batches per epoch.
+        if self._epoch_clips is None:
+            return 0
+        return (self._epoch_clips + self.batch_size - 1) // self.batch_size
 
 class DaliDataLoader:
     """
@@ -128,48 +125,46 @@ class DaliDataLoader:
         frame_counts = self._load_metadata()
         mkv_rel_paths = sorted(list(frame_counts.keys()))
 
-        # 2. Build the global window list OR load from split
+        # 2. File-level split (the experimental DALI reader does clip sampling
+        # internally — we only need to hand it the list of files).
+        # Filter out any file too short to yield a single clip.
+        min_frames = clip_frames + end_safety_margin
+        usable_rel = [p for p in mkv_rel_paths if frame_counts.get(p, 0) >= min_frames]
+        dropped = len(mkv_rel_paths) - len(usable_rel)
+        if dropped:
+            print(f"  Skipping {dropped} files shorter than {min_frames} frames.")
+
         if self.split_path.exists():
             print(f"Loading split from {self.split_path}...")
             with open(self.split_path, 'r') as f:
                 split_data = json.load(f)
-            train_clips = split_data['train']
-            val_clips = split_data['val']
+            train_files = split_data['train']
+            val_files = split_data['val']
         else:
-            print(f"Generating new split at {self.split_path} "
-                  f"(safety margin {end_safety_margin} frames)...")
-            all_clips = []
-            for rel_path in mkv_rel_paths:
-                n_frames = frame_counts.get(rel_path, 0)
-                usable = n_frames - end_safety_margin
-                if usable < self.clip_frames:
-                    continue
-                abs_path = str(self.dataset_path / rel_path)
-                # Window starts: last start must satisfy start + clip_frames <= usable.
-                for start in range(0, usable - self.clip_frames + 1, self.stride):
-                    all_clips.append((abs_path, start, start + self.clip_frames))
-            
-            # Shuffle and split
+            print(f"Generating new file-level split at {self.split_path} "
+                  f"({len(usable_rel)} usable files)...")
+            shuffled = list(usable_rel)
             random.seed(self.seed)
-            random.shuffle(all_clips)
-            split_idx = int(len(all_clips) * (1.0 - val_split))
-            train_clips = all_clips[:split_idx]
-            val_clips = all_clips[split_idx:]
-            
-            # Save for later
+            random.shuffle(shuffled)
+            split_idx = int(len(shuffled) * (1.0 - val_split))
+            train_files = shuffled[:split_idx]
+            val_files = shuffled[split_idx:]
             with open(self.split_path, 'w') as f:
-                json.dump({'train': train_clips, 'val': val_clips}, f)
+                json.dump({'train': train_files, 'val': val_files}, f)
 
-        # 3. Select the subset based on mode
-        selected_clips = train_clips if mode == "train" else val_clips
-        print(f"Initialized DaliDataLoader ({mode}): {len(selected_clips)} clips found.")
+        selected_rel = train_files if mode == "train" else val_files
+        selected_abs = [str(self.dataset_path / p) for p in selected_rel]
+        print(f"Initialized DaliDataLoader ({mode}): {len(selected_abs)} files "
+              f"(~{sum(frame_counts.get(p, 0) // clip_frames for p in selected_rel)} clips).")
 
         self.clipper = DaliClipper(
-            clip_list=selected_clips,
+            file_paths=selected_abs,
+            clip_frames=clip_frames,
             batch_size=batch_size,
             num_threads=num_threads,
             device_id=device_id,
-            shuffle=self.shuffle
+            shuffle=self.shuffle,
+            step=self.stride,
         )
 
     def _load_metadata(self) -> dict:
