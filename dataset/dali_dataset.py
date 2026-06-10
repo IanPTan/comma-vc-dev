@@ -30,6 +30,7 @@ class DaliClipper:
         step: Optional[int] = None,     # stride between consecutive clip starts
                                         # in a file; defaults to clip_frames
                                         # (= non-overlapping windows).
+        prefetch_queue_depth: int = 4,  # how many batches DALI builds ahead
     ):
         if not file_paths:
             raise ValueError("file_paths cannot be empty")
@@ -41,6 +42,7 @@ class DaliClipper:
         self.device_id = device_id
         self.shuffle = shuffle
         self.step = step if step is not None else clip_frames
+        self.prefetch_queue_depth = prefetch_queue_depth
 
         self.pipeline = self._build_pipeline()
         self.iterator = DALIGenericIterator(
@@ -56,7 +58,12 @@ class DaliClipper:
             self._epoch_clips = None
 
     def _build_pipeline(self):
-        @pipeline_def(batch_size=self.batch_size, num_threads=self.num_threads, device_id=self.device_id)
+        @pipeline_def(
+            batch_size=self.batch_size,
+            num_threads=self.num_threads,
+            device_id=self.device_id,
+            prefetch_queue_depth=self.prefetch_queue_depth,
+        )
         def video_pipe():
             out = fn.experimental.readers.video(
                 device=self.device,
