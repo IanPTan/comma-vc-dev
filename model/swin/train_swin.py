@@ -57,6 +57,8 @@ def parse_args():
     p.add_argument("--save-every", type=int, default=5)
     p.add_argument("--resume", type=str, default=None,
                    help="Optional checkpoint path to resume from.")
+    p.add_argument("--max-batches-per-epoch", type=int, default=None,
+                   help="Cap batches per epoch (smoke test mode).")
     return p.parse_args()
 
 
@@ -114,6 +116,7 @@ def main():
         frame_size=args.frame_size,
         save_every=args.save_every,
         grad_clip=args.grad_clip,
+        max_batches_per_epoch=args.max_batches_per_epoch,
     )
     save_final_swin(model, optimizer, history, args.num_epochs, args.save_dir)
 

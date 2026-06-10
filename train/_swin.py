@@ -9,7 +9,7 @@ patches in the loss / encoder input; the loop here doesn't need to change.)
 
 import os
 import time
-from typing import Dict
+from typing import Dict, Optional
 
 import torch
 import torch.nn.functional as F
@@ -36,6 +36,7 @@ def train_swin(
     frame_size: int = 256,
     save_every: int = 5,
     grad_clip: float = 1.0,
+    max_batches_per_epoch: Optional[int] = None,
 ) -> Dict[str, list]:
     """Train `SwinVideoAutoencoder` end-to-end with pixel MSE.
 
@@ -69,6 +70,9 @@ def train_swin(
 
         pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}")
         for batch in pbar:
+            if max_batches_per_epoch is not None and n_batches >= max_batches_per_epoch:
+                pbar.close()
+                break
             clip = _resize_clip(batch.to(device), frame_size)
 
             t0 = time.perf_counter()
