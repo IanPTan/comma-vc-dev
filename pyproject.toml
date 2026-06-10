@@ -10,4 +10,5 @@ dependencies = [
     "h5py>=3.16.0",
     "matplotlib>=3.10.9",
     "PyYAML>=6.0",
+    "torch>=2.12.0",
 ]
