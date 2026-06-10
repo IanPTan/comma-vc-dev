@@ -63,10 +63,8 @@ class DaliClipper:
                 step=self.step,
                 stride=1,
                 random_shuffle=self.shuffle,
-                initial_fill=1024 if self.shuffle else 1,
                 shard_id=0,
                 num_shards=1,
-                pad_sequences=False,        # drop tail clips that are short
                 name="reader",
             )
             video = out[0] if isinstance(out, (tuple, list)) else out
