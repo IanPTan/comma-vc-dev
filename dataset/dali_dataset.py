@@ -66,6 +66,9 @@ class DaliClipper:
                 image_type=types.RGB,
                 dtype=types.UINT8,
                 normalized=False,
+                # New DALI default; silences the deprecation warning and
+                # gives a more accurate per-file frame count.
+                file_list_include_preceding_frame=True,
             )
             video = out[0] if isinstance(out, (tuple, list)) else out
             # (F, H, W, C) -> (C, F, H, W)
@@ -107,7 +110,8 @@ class DaliDataLoader:
         # frame_counts.json sometimes overcounts what DALI's GPU video decoder
         # actually sees (keyframe-aware seek vs naive count). Subtract this
         # many frames from each file's reported length before windowing.
-        end_safety_margin: int = 30,
+        # comma2k19 HEVC needs ~200 to be safe with the legacy DALI reader.
+        end_safety_margin: int = 200,
     ):
         self.dataset_path = pathlib.Path(dataset_path)
         self.split_path = pathlib.Path(split_path)

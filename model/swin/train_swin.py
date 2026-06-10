@@ -35,6 +35,9 @@ def parse_args():
     p.add_argument("--clip-frames", type=int, default=16,
                    help="Frames per clip. Must be divisible by patch_t * window_t.")
     p.add_argument("--frame-size", type=int, default=256)
+    p.add_argument("--end-safety-margin", type=int, default=200,
+                   help="Frames trimmed off the end of each .mkv when building "
+                        "windows, to absorb DALI's stricter frame counting.")
 
     # Model
     p.add_argument("--patch-t", type=int, default=2)
@@ -72,6 +75,7 @@ def main():
         batch_size=args.batch_size,
         num_threads=args.workers,
         device_id=device_id,
+        end_safety_margin=args.end_safety_margin,
     )
     print(f"batches/epoch: {len(loader)}")
 
