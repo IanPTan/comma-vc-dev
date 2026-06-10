@@ -53,7 +53,9 @@ class DaliClipper:
 
         @pipeline_def(batch_size=self.batch_size, num_threads=self.num_threads, device_id=self.device_id)
         def video_pipe():
-            video = fn.readers.video(
+            # When file_list rows have a label column, fn.readers.video returns
+            # (video, labels). We only care about the video here.
+            out = fn.readers.video(
                 device="gpu",
                 file_list=self._file_list_tmp.name,
                 sequence_length=seq_len,
@@ -63,8 +65,9 @@ class DaliClipper:
                 initial_fill=1024 if self.shuffle else 1,
                 image_type=types.RGB,
                 dtype=types.UINT8,
-                normalized=False
+                normalized=False,
             )
+            video = out[0] if isinstance(out, (tuple, list)) else out
             # (F, H, W, C) -> (C, F, H, W)
             video = fn.transpose(video, perm=[3, 0, 1, 2])
             return video
