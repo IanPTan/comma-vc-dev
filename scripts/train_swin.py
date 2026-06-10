@@ -6,7 +6,7 @@ end-to-end with pixel MSE. No masking, no MAE, no codebook — a standalone
 trainable model.
 
 Example:
-    python model/swin/train_swin.py \\
+    python scripts/train_swin.py \\
         --data-path data/comma2k19 \\
         --batch-size 4 --clip-frames 16 --frame-size 256 --num-epochs 30
 """
@@ -17,7 +17,7 @@ from pathlib import Path
 
 import torch
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.append(str(REPO_ROOT))
 
