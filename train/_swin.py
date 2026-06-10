@@ -32,7 +32,7 @@ def _resize_clip(clip: torch.Tensor, size: int) -> torch.Tensor:
     return x.reshape(B, T, C, size, size).permute(0, 2, 1, 3, 4).contiguous()
 
 
-def train_swin(
+def train(
     model: torch.nn.Module,
     train_loader,
     optimizer: torch.optim.Optimizer,
@@ -130,7 +130,7 @@ def train_swin(
     return history
 
 
-def save_final_swin(model, optimizer, history, num_epochs, save_dir):
+def save_final(model, optimizer, history, num_epochs, save_dir):
     final_path = os.path.join(save_dir, "swin_final.pt")
     torch.save({
         "epoch": num_epochs,

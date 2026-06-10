@@ -6,32 +6,37 @@ end-to-end with pixel MSE. No masking, no MAE, no codebook — a standalone
 trainable model.
 
 Example:
-    python scripts/train_swin.py \\
+    python scripts/train.py \\
         --data-path data/comma2k19 \\
         --batch-size 4 --clip-frames 16 --frame-size 256 --num-epochs 30
 """
 
 import argparse
 import sys
+import os
 from pathlib import Path
 
 import torch
 
+# Ensure the repo root is in the python path so we can import our packages
+# when running the script from the root like: python scripts/train.py
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.append(str(REPO_ROOT))
 
 from dataset import DaliDataLoader
 from model.swin.swin_video import SwinVideoAutoencoder
-from train import train_swin, save_final_swin
+from train import train, save_final, evaluate
 
 
 def parse_args():
     p = argparse.ArgumentParser(description="Train Swin video autoencoder on comma2k19.")
     # Data
-    p.add_argument("--data-path", type=str, required=True)
+    p.add_argument("--data-path", type=str, required=True, help="Path to the dataset root.")
+    p.add_argument("--val-path", type=str, default=None, help="Optional validation data path.")
     p.add_argument("--batch-size", type=int, default=4)
-    p.add_argument("-w", "--workers", type=int, default=4)
+    p.add_argument("-w", "--workers", type=int, default=4, help="Number of DALI threads.")
+    p.add_argument("--device", type=str, default="gpu", choices=["gpu", "cpu"], help="DALI device backend.")
     p.add_argument("--clip-frames", type=int, default=16,
                    help="Frames per clip. Must be divisible by patch_t * window_t.")
     p.add_argument("--frame-size", type=int, default=256)
@@ -79,15 +84,30 @@ def main():
     if torch.cuda.is_available():
         print(f"gpu:    {torch.cuda.get_device_name()}")
 
-    loader = DaliDataLoader(
+    # Data
+    train_loader = DaliDataLoader(
         args.data_path,
         clip_frames=args.clip_frames,
         batch_size=args.batch_size,
         num_threads=args.workers,
+        device=args.device,
         device_id=device_id,
         end_safety_margin=args.end_safety_margin,
     )
-    print(f"batches/epoch: {len(loader)}")
+    print(f"train batches/epoch: {len(train_loader)}")
+
+    val_loader = None
+    if args.val_path is not None:
+        val_loader = DaliDataLoader(
+            args.val_path,
+            clip_frames=args.clip_frames,
+            batch_size=args.batch_size,
+            num_threads=args.workers,
+            device=args.device,
+            device_id=device_id,
+            end_safety_margin=args.end_safety_margin,
+        )
+        print(f"val batches/epoch:   {len(val_loader)}")
 
     model = SwinVideoAutoencoder(
         input_size=(args.clip_frames, args.frame_size, args.frame_size),
@@ -125,9 +145,9 @@ def main():
         optimizer.load_state_dict(ckpt["optimizer_state_dict"])
         print(f"Resumed from {args.resume} (epoch {ckpt.get('epoch', '?')})")
 
-    history = train_swin(
+    history = train(
         model=model,
-        train_loader=loader,
+        train_loader=train_loader,
         optimizer=optimizer,
         device=device,
         num_epochs=args.num_epochs,
@@ -137,7 +157,12 @@ def main():
         grad_clip=args.grad_clip,
         max_batches_per_epoch=args.max_batches_per_epoch,
     )
-    save_final_swin(model, optimizer, history, args.num_epochs, args.save_dir)
+    save_final(model, optimizer, history, args.num_epochs, args.save_dir)
+
+    # Optional final eval
+    if val_loader is not None:
+        print("\n=== Validation ===")
+        evaluate(model, val_loader, "val", device)
 
 
 if __name__ == "__main__":

@@ -24,6 +24,7 @@ class DaliClipper:
         clip_frames: int,               # frames per sequence
         batch_size: int = 1,
         num_threads: int = 2,
+        device: str = "gpu",
         device_id: int = 0,
         shuffle: bool = False,
         step: Optional[int] = None,     # stride between consecutive clip starts
@@ -36,6 +37,7 @@ class DaliClipper:
         self.clip_frames = clip_frames
         self.batch_size = batch_size
         self.num_threads = num_threads
+        self.device = device
         self.device_id = device_id
         self.shuffle = shuffle
         self.step = step if step is not None else clip_frames
@@ -57,7 +59,7 @@ class DaliClipper:
         @pipeline_def(batch_size=self.batch_size, num_threads=self.num_threads, device_id=self.device_id)
         def video_pipe():
             out = fn.experimental.readers.video(
-                device="gpu",
+                device=self.device,
                 filenames=self.file_paths,
                 sequence_length=self.clip_frames,
                 step=self.step,
@@ -99,6 +101,7 @@ class DaliDataLoader:
         stride: Optional[int] = None, # If None, stride = clip_frames (no overlap)
         batch_size: int = 64,
         num_threads: int = 4,
+        device: str = "gpu",
         device_id: int = 0,
         seed: int = 42,
         shuffle: bool = True,
@@ -114,6 +117,7 @@ class DaliDataLoader:
         self.stride = stride if stride is not None else clip_frames
         self.batch_size = batch_size
         self.num_threads = num_threads
+        self.device = device
         self.device_id = device_id
         self.seed = seed
         self.shuffle = (mode == "train") and shuffle
@@ -160,6 +164,7 @@ class DaliDataLoader:
             clip_frames=clip_frames,
             batch_size=batch_size,
             num_threads=num_threads,
+            device=self.device,
             device_id=device_id,
             shuffle=self.shuffle,
             step=self.stride,
