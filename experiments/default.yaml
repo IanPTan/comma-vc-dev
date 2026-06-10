@@ -1,0 +1,31 @@
+# Default Hyperparameters for Swin Video Autoencoder
+
+# Experiment Management
+seed: 42
+
+# Data
+batch_size: 4
+workers: 4
+device: "gpu"
+clip_frames: 16
+frame_size: 256
+end_safety_margin: 200
+
+# Model Architecture
+patch_t: 2
+patch_s: 16
+window_t: 8
+window_s: 4
+embed_dim: 96
+depths: [2, 2, 6, 2]
+num_heads: [3, 6, 12, 24]
+mlp_ratio: 4.0
+
+# Optimizer & Training
+lr: 0.0003
+weight_decay: 0.05
+grad_clip: 1.0
+num_epochs: 30
+save_every: 5
+compile: false
+compile_mode: "default"

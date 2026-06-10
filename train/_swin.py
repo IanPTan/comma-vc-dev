@@ -2,15 +2,15 @@
 Trainer for the Video Swin autoencoder (arxiv 2212.13805 backbone, no masking).
 
 The model is `SwinVideoAutoencoder`: Swin encoder + symmetric Swin decoder,
-trained with pixel MSE reconstruction loss. This is a standalone trainable
-model — no masking, no codebook, no VQ. (When MAE is added later, just mask
-patches in the loss / encoder input; the loop here doesn't need to change.)
+trained with pixel MSE reconstruction loss.
 """
 
 import os
 import time
 from typing import Dict, Optional
 
+import h5py
+import numpy as np
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
@@ -39,11 +39,13 @@ def train(
     device: torch.device,
     num_epochs: int,
     save_dir: str,
+    val_loader=None,
     frame_size: int = 256,
     save_every: int = 5,
     grad_clip: float = 1.0,
     max_batches_per_epoch: Optional[int] = None,
-) -> Dict[str, list]:
+    resume_epoch: int = 0,
+):
     """Train `SwinVideoAutoencoder` end-to-end with pixel MSE.
 
     Args:
@@ -54,25 +56,37 @@ def train(
         device:       'cuda' / 'cpu'.
         num_epochs:   number of epochs.
         save_dir:     where to write checkpoints.
+        val_loader:   optional validation loader.
         frame_size:   resize each frame to this HxW before the encoder.
         save_every:   checkpoint cadence (epochs).
         grad_clip:    global L2 grad clip; pass 0 to disable.
+        resume_epoch: epoch to start from (0 if new training).
     """
     os.makedirs(save_dir, exist_ok=True)
-    history: Dict[str, list] = {
-        "loss": [], "clips_per_sec": [], "step_ms": [],
-        "recon_mean": [], "recon_std": [],
-    }
+    stats_path = os.path.join(save_dir, "stats.h5")
+    
+    # Initialize HDF5 file for logging
+    if resume_epoch == 0 or not os.path.exists(stats_path):
+        with h5py.File(stats_path, 'w') as f:
+            g = f.create_group("loss")
+            g.create_dataset("train", (num_epochs,), dtype='f', fillvalue=np.nan)
+            g.create_dataset("val", (num_epochs,), dtype='f', fillvalue=np.nan)
+    
+    best_val_loss = float('inf')
+    
+    # Try to load best_val_loss if resuming
+    if resume_epoch > 0:
+        with h5py.File(stats_path, 'r') as f:
+            val_losses = f["loss/val"][:resume_epoch]
+            valid_val = val_losses[~np.isnan(val_losses)]
+            if len(valid_val) > 0:
+                best_val_loss = np.min(valid_val)
 
-    for epoch in range(num_epochs):
+    for epoch in range(resume_epoch, num_epochs):
         model.train()
         epoch_loss = 0.0
         epoch_time = 0.0
-        epoch_step_ms = 0.0
-        epoch_clips = 0
         n_batches = 0
-        recon_mean_sum = 0.0
-        recon_std_sum = 0.0
 
         pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}")
         for batch in pbar:
@@ -94,49 +108,71 @@ def train(
 
             epoch_loss += loss.item()
             epoch_time += dt
-            epoch_step_ms += dt * 1000
-            epoch_clips += clip.shape[0]
             n_batches += 1
-            recon_mean_sum += recon.mean().item()
-            recon_std_sum += recon.std().item()
 
             pbar.set_postfix({
                 "loss": f"{loss.item():.4f}",
                 "ms": f"{dt*1000:.0f}",
             })
 
-        avg_loss = epoch_loss / max(n_batches, 1)
-        cps = epoch_clips / max(epoch_time, 1e-9)
-        avg_step_ms = epoch_step_ms / max(n_batches, 1)
-        history["loss"].append(avg_loss)
-        history["clips_per_sec"].append(cps)
-        history["step_ms"].append(avg_step_ms)
-        history["recon_mean"].append(recon_mean_sum / max(n_batches, 1))
-        history["recon_std"].append(recon_std_sum / max(n_batches, 1))
+        avg_train_loss = epoch_loss / max(n_batches, 1)
+        
+        # Validation
+        avg_val_loss = np.nan
+        if val_loader is not None:
+            model.eval()
+            val_loss_sum = 0.0
+            val_batches = 0
+            with torch.no_grad():
+                for batch in tqdm(val_loader, desc="Validation", leave=False):
+                    clip = _resize_clip(batch.to(device), frame_size)
+                    _, loss = model(clip)
+                    val_loss_sum += loss.item()
+                    val_batches += 1
+            avg_val_loss = val_loss_sum / max(val_batches, 1)
 
-        print(f"Epoch {epoch+1}: loss={avg_loss:.4f} | "
-              f"{cps:.1f} clips/s | step {avg_step_ms:.1f} ms")
+        # Log to HDF5
+        with h5py.File(stats_path, 'a') as f:
+            f["loss/train"][epoch] = avg_train_loss
+            f["loss/val"][epoch] = avg_val_loss
 
+        print(f"Epoch {epoch+1}: train_loss={avg_train_loss:.4f} | val_loss={avg_val_loss:.4f}")
+
+        # Checkpoints
+        checkpoint = {
+            "epoch": epoch + 1,
+            "model_state_dict": _raw_model(model).state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "best_val_loss": best_val_loss,
+        }
+        
+        # Save latest
+        latest_path = os.path.join(save_dir, "checkpoint_latest.pt")
+        torch.save(checkpoint, latest_path)
+        
+        # Save best
+        if val_loader is not None and avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
+            checkpoint["best_val_loss"] = best_val_loss
+            best_path = os.path.join(save_dir, "best_val_model.pt")
+            torch.save(checkpoint, best_path)
+            print(f"  *** New best validation loss: {best_val_loss:.4f} (saved to {best_path})")
+
+        # Optional periodic checkpoint
         if (epoch + 1) % save_every == 0:
-            ckpt = os.path.join(save_dir, f"swin_epoch{epoch+1}.pt")
-            torch.save({
-                "epoch": epoch + 1,
-                "model_state_dict": _raw_model(model).state_dict(),
-                "optimizer_state_dict": optimizer.state_dict(),
-                "history": history,
-            }, ckpt)
-            print(f"  Saved checkpoint: {ckpt}")
+            ckpt_p = os.path.join(save_dir, f"checkpoint_epoch{epoch+1}.pt")
+            torch.save(checkpoint, ckpt_p)
 
-    return history
+    return stats_path
 
 
 def save_final(model, optimizer, history, num_epochs, save_dir):
+    # 'history' here is the stats_path returned by train()
     final_path = os.path.join(save_dir, "swin_final.pt")
     torch.save({
         "epoch": num_epochs,
         "model_state_dict": _raw_model(model).state_dict(),
         "optimizer_state_dict": optimizer.state_dict(),
-        "history": history,
     }, final_path)
     print(f"\nFinal Swin autoencoder saved to {final_path}")
     return final_path

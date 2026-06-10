@@ -7,4 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "huggingface-hub[cli]>=1.18.0",
     "numpy>=2.4.6",
+    "h5py>=3.16.0",
+    "matplotlib>=3.10.9",
+    "PyYAML>=6.0",
 ]

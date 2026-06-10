@@ -3,3 +3,4 @@ __pycache__
 /data
 .DS_Store
 notebooks/train_swin_colab.ipynb
+experiments/**/data/
