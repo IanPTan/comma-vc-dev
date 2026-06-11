@@ -9,6 +9,8 @@ dependencies = [
     "numpy>=2.4.6",
     "h5py>=3.16.0",
     "matplotlib>=3.10.9",
-    "PyYAML>=6.0",
+    "pyyaml>=6.0",
     "torch>=2.12.0",
+    "tqdm>=4.68.1",
+    "nvidia-dali-cuda120>=2.1.0",
 ]
