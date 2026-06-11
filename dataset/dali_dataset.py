@@ -23,6 +23,7 @@ class DaliClipper:
         self,
         file_paths: List[str],          # one entry per .mkv to draw clips from
         clip_frames: int,               # frames per sequence
+        frame_size: int = 256,          # target size (H and W)
         batch_size: int = 1,
         num_threads: int = 2,
         device: str = "gpu",
@@ -37,6 +38,7 @@ class DaliClipper:
             raise ValueError("file_paths cannot be empty")
         self.file_paths = [os.path.abspath(p) for p in file_paths]
         self.clip_frames = clip_frames
+        self.frame_size = frame_size
         self.batch_size = batch_size
         self.num_threads = num_threads
         self.device = device
@@ -172,6 +174,7 @@ class DaliDataLoader:
         self.clipper = DaliClipper(
             file_paths=selected_abs,
             clip_frames=clip_frames,
+            frame_size=frame_size,
             batch_size=batch_size,
             num_threads=num_threads,
             device=self.device,
@@ -192,6 +195,12 @@ class DaliDataLoader:
             return json.load(f)
 
     def __iter__(self):
+        return iter(self.clipper)
+
+    def __len__(self):
+        return len(self.clipper)
+        return len(self.clipper)
+ def __iter__(self):
         return iter(self.clipper)
 
     def __len__(self):

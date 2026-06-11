@@ -156,31 +156,34 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() and args.device == "gpu" else "cpu")
     device_id = device.index if device.index is not None else 0
     print(f"Device: {device} | Experiment: {exp_dir}")
+# Data
+train_loader = DaliDataLoader(
+    args.data_path,
+    mode="train",
+    clip_frames=args.clip_frames,
+    frame_size=args.frame_size,
+    batch_size=args.batch_size,
+    num_threads=args.workers,
+    device=args.device,
+    device_id=device_id,
+    end_safety_margin=args.end_safety_margin,
+)
+print(f"train batches/epoch: {len(train_loader)}")
 
-    # 4. Data
-    train_loader = DaliDataLoader(
-        args.data_path,
-        mode="train",
+val_loader = None
+if args.val_path is not None:
+    val_loader = DaliDataLoader(
+        args.val_path,
+        mode="val",
         clip_frames=args.clip_frames,
+        frame_size=args.frame_size,
         batch_size=args.batch_size,
         num_threads=args.workers,
         device=args.device,
         device_id=device_id,
         end_safety_margin=args.end_safety_margin,
     )
-    
-    val_loader = None
-    if args.val_path is not None:
-        val_loader = DaliDataLoader(
-            args.val_path,
-            mode="val",
-            clip_frames=args.clip_frames,
-            batch_size=args.batch_size,
-            num_threads=args.workers,
-            device=args.device,
-            device_id=device_id,
-            end_safety_margin=args.end_safety_margin,
-        )
+
 
     # 5. Model + optimizer
     model = SwinVideoAutoencoder(

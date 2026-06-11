@@ -22,14 +22,12 @@ def _raw_model(m: torch.nn.Module) -> torch.nn.Module:
     return getattr(m, "_orig_mod", m)
 
 
-def _resize_clip(clip: torch.Tensor, size: int) -> torch.Tensor:
-    """(B, C, T, H, W) uint8/float -> (B, C, T, size, size) float in [0, 1]."""
-    B, C, T, H, W = clip.shape
-    x = clip.permute(0, 2, 1, 3, 4).reshape(B * T, C, H, W).float()
+def _normalize_batch(batch: torch.Tensor) -> torch.Tensor:
+    """uint8 [0, 255] -> float32 [0, 1]."""
+    x = batch.float()
     if x.max() > 1.5:
         x = x / 255.0
-    x = F.interpolate(x, size=(size, size), mode="bilinear", align_corners=False)
-    return x.reshape(B, T, C, size, size).permute(0, 2, 1, 3, 4).contiguous()
+    return x
 
 
 def train(
@@ -57,7 +55,7 @@ def train(
         num_epochs:   number of epochs.
         save_dir:     where to write checkpoints.
         val_loader:   optional validation loader.
-        frame_size:   resize each frame to this HxW before the encoder.
+        frame_size:   (Unused in loop, now handled by DALI).
         save_every:   checkpoint cadence (epochs).
         grad_clip:    global L2 grad clip; pass 0 to disable.
         resume_epoch: epoch to start from (0 if new training).
@@ -93,7 +91,10 @@ def train(
             if max_batches_per_epoch is not None and n_batches >= max_batches_per_epoch:
                 pbar.close()
                 break
-            clip = _resize_clip(batch.to(device), frame_size)
+            
+            # DALI now provides the correctly resized [B, C, T, H, W] tensor.
+            # We just need to normalize to [0, 1].
+            clip = _normalize_batch(batch.to(device))
 
             t0 = time.perf_counter()
             optimizer.zero_grad(set_to_none=True)
@@ -125,7 +126,7 @@ def train(
             val_batches = 0
             with torch.no_grad():
                 for batch in tqdm(val_loader, desc="Validation", leave=False):
-                    clip = _resize_clip(batch.to(device), frame_size)
+                    clip = _normalize_batch(batch.to(device))
                     _, loss = model(clip)
                     val_loss_sum += loss.item()
                     val_batches += 1
