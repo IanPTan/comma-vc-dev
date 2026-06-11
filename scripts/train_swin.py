@@ -113,7 +113,7 @@ def main():
 
     # 1. Setup Experiment Directory
     if args.exp_dir is None:
-        exp_dir = get_next_exp_dir()
+        exp_dir = get_latest_exp_dir()
     else:
         exp_dir = args.exp_dir
     
