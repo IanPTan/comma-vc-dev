@@ -36,7 +36,7 @@ def set_seed(seed):
     # torch.backends.cudnn.benchmark = False
 
 
-def get_next_exp_dir(base_dir="experiments"):
+def get_latest_exp_dir(base_dir="experiments"):
     os.makedirs(base_dir, exist_ok=True)
     existing = [d for d in os.listdir(base_dir) if d.startswith("model_")]
     if not existing:
@@ -52,7 +52,7 @@ def get_next_exp_dir(base_dir="experiments"):
     if not nums:
         return os.path.join(base_dir, "model_0")
     
-    return os.path.join(base_dir, f"model_{max(nums) + 1}")
+    return os.path.join(base_dir, f"model_{max(nums)}")
 
 
 def load_defaults():
