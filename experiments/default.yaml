@@ -4,6 +4,7 @@
 seed: 42
 
 # Data
+data_path: "data/comma2k19"
 batch_size: 4
 workers: 4
 device: "gpu"

@@ -72,7 +72,8 @@ def parse_args(defaults):
     p.add_argument("--seed", type=int, default=defaults.get("seed", 42), help="Random seed for reproducibility.")
 
     # Data
-    p.add_argument("--data-path", type=str, required=True, help="Path to the dataset root.")
+    p.add_argument("--data-path", type=str, default=defaults.get("data_path", "data/comma2k19"), 
+                   help="Path to the dataset root.")
     p.add_argument("--val-path", type=str, default=None, help="Optional validation data path.")
     p.add_argument("--batch-size", type=int, default=defaults.get("batch_size", 4))
     p.add_argument("-w", "--workers", type=int, default=defaults.get("workers", 4), help="Number of DALI threads.")
