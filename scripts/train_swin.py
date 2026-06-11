@@ -135,9 +135,6 @@ def main():
         if os.path.exists(config_path):
             with open(config_path, 'r') as f:
                 saved_config = yaml.safe_load(f)
-            # Override current args with saved config to ensure reproducibility
-            # but keep data_path/device etc if user wants to change environment?
-            # Actually, user said config should be pushed to remote, so it defines the model.
             for k, v in saved_config.items():
                 if k not in ["data_path", "val_path", "workers", "device", "exp_dir"]:
                     setattr(args, k, v)
@@ -156,25 +153,11 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() and args.device == "gpu" else "cpu")
     device_id = device.index if device.index is not None else 0
     print(f"Device: {device} | Experiment: {exp_dir}")
-# Data
-train_loader = DaliDataLoader(
-    args.data_path,
-    mode="train",
-    clip_frames=args.clip_frames,
-    frame_size=args.frame_size,
-    batch_size=args.batch_size,
-    num_threads=args.workers,
-    device=args.device,
-    device_id=device_id,
-    end_safety_margin=args.end_safety_margin,
-)
-print(f"train batches/epoch: {len(train_loader)}")
 
-val_loader = None
-if args.val_path is not None:
-    val_loader = DaliDataLoader(
-        args.val_path,
-        mode="val",
+    # 4. Data
+    train_loader = DaliDataLoader(
+        args.data_path,
+        mode="train",
         clip_frames=args.clip_frames,
         frame_size=args.frame_size,
         batch_size=args.batch_size,
@@ -183,7 +166,22 @@ if args.val_path is not None:
         device_id=device_id,
         end_safety_margin=args.end_safety_margin,
     )
+    print(f"Train batches/epoch: {len(train_loader)}")
 
+    val_loader = None
+    if args.val_path is not None:
+        val_loader = DaliDataLoader(
+            args.val_path,
+            mode="val",
+            clip_frames=args.clip_frames,
+            frame_size=args.frame_size,
+            batch_size=args.batch_size,
+            num_threads=args.workers,
+            device=args.device,
+            device_id=device_id,
+            end_safety_margin=args.end_safety_margin,
+        )
+        print(f"Val batches/epoch:   {len(val_loader)}")
 
     # 5. Model + optimizer
     model = SwinVideoAutoencoder(
@@ -211,14 +209,13 @@ if args.val_path is not None:
         print(f"Resumed from epoch {resume_epoch}")
 
     # 7. Train
-    # train() now returns the path to stats.h5
     stats_path = train(
         model=model,
         train_loader=train_loader,
         optimizer=optimizer,
         device=device,
         num_epochs=args.num_epochs,
-        save_dir=data_dir, # Pass the data/ subdir for pt/h5 files
+        save_dir=data_dir,
         val_loader=val_loader,
         frame_size=args.frame_size,
         save_every=args.save_every,

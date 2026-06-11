@@ -80,6 +80,10 @@ class DaliClipper:
                 name="reader",
             )
             video = out[0] if isinstance(out, (tuple, list)) else out
+            
+            # Resize directly on GPU/CPU as part of the pipeline
+            video = fn.resize(video, resize_x=self.frame_size, resize_y=self.frame_size)
+            
             # (F, H, W, C) -> (C, F, H, W)
             return fn.transpose(video, perm=[3, 0, 1, 2])
 
@@ -110,6 +114,7 @@ class DaliDataLoader:
         mode: str = "train",  # "train" or "val"
         val_split: float = 0.1,
         clip_frames: int = 200,
+        frame_size: int = 256,
         stride: Optional[int] = None, # If None, stride = clip_frames (no overlap)
         batch_size: int = 64,
         num_threads: int = 4,
@@ -126,6 +131,7 @@ class DaliDataLoader:
         self.dataset_path = pathlib.Path(dataset_path)
         self.split_path = pathlib.Path(split_path)
         self.clip_frames = clip_frames
+        self.frame_size = frame_size
         self.stride = stride if stride is not None else clip_frames
         self.batch_size = batch_size
         self.num_threads = num_threads
@@ -195,12 +201,6 @@ class DaliDataLoader:
             return json.load(f)
 
     def __iter__(self):
-        return iter(self.clipper)
-
-    def __len__(self):
-        return len(self.clipper)
-        return len(self.clipper)
- def __iter__(self):
         return iter(self.clipper)
 
     def __len__(self):
