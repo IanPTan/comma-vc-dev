@@ -168,20 +168,19 @@ def main():
     )
     print(f"Train batches/epoch: {len(train_loader)}")
 
-    val_loader = None
-    if args.val_path is not None:
-        val_loader = DaliDataLoader(
-            args.val_path,
-            mode="val",
-            clip_frames=args.clip_frames,
-            frame_size=args.frame_size,
-            batch_size=args.batch_size,
-            num_threads=args.workers,
-            device=args.device,
-            device_id=device_id,
-            end_safety_margin=args.end_safety_margin,
-        )
-        print(f"Val batches/epoch:   {len(val_loader)}")
+    val_path = args.val_path if args.val_path else args.data_path
+    val_loader = DaliDataLoader(
+        val_path,
+        mode="val",
+        clip_frames=args.clip_frames,
+        frame_size=args.frame_size,
+        batch_size=args.batch_size,
+        num_threads=args.workers,
+        device=args.device,
+        device_id=device_id,
+        end_safety_margin=args.end_safety_margin,
+    )
+    print(f"Val batches/epoch:   {len(val_loader)}")
 
     # 5. Model + optimizer
     model = SwinVideoAutoencoder(
