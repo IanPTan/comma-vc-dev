@@ -125,11 +125,23 @@ def train(
             val_loss_sum = 0.0
             val_batches = 0
             with torch.no_grad():
-                for batch in tqdm(val_loader, desc="Validation", leave=False):
+                val_pbar = tqdm(val_loader, desc="Validation", leave=False)
+                for batch in val_pbar:
                     clip = _normalize_batch(batch.to(device))
+                    
+                    t0 = time.perf_counter()
                     _, loss = model(clip)
+                    if device.type == "cuda":
+                        torch.cuda.synchronize()
+                    dt = time.perf_counter() - t0
+                    
                     val_loss_sum += loss.item()
                     val_batches += 1
+                    
+                    val_pbar.set_postfix({
+                        "loss": f"{loss.item():.4f}",
+                        "ms": f"{dt*1000:.0f}",
+                    })
             avg_val_loss = val_loss_sum / max(val_batches, 1)
 
         # Log to HDF5
