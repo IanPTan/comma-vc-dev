@@ -143,3 +143,7 @@ def main():
                     pbar.set_postfix({"total_frames": total_frames})
 
     print(f"\nSuccess! Extracted {total_frames} frames to {output_path}")
+
+
+if __name__ == "__main__":
+    main()
