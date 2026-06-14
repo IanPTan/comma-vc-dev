@@ -75,6 +75,7 @@ def parse_args(defaults):
     p.add_argument("--data-path", type=str, default=defaults.get("data_path", "data/comma2k19"), 
                    help="Path to the dataset root.")
     p.add_argument("--val-path", type=str, default=None, help="Optional validation data path.")
+    p.add_argument("--val-split", type=float, default=defaults.get("val_split", 0.1), help="Proportion of data to use for validation.")
     p.add_argument("--batch-size", type=int, default=defaults.get("batch_size", 4))
     p.add_argument("-w", "--workers", type=int, default=defaults.get("workers", 4), help="Number of DALI threads.")
     p.add_argument("--device", type=str, default=defaults.get("device", "gpu"), choices=["gpu", "cpu"], help="DALI device backend.")
@@ -172,6 +173,7 @@ def main():
     val_loader = DaliDataLoader(
         val_path,
         mode="val",
+        val_split=args.val_split,
         clip_frames=args.clip_frames,
         frame_size=args.frame_size,
         batch_size=args.batch_size,
