@@ -11,6 +11,8 @@ workers: 4
 device: "gpu"
 clip_frames: 16
 frame_size: 256
+stride: 16
+prefetch_queue_depth: 4
 end_safety_margin: 200
 
 # Model Architecture
@@ -22,10 +24,15 @@ embed_dim: 96
 depths: [2, 2, 6, 2]
 num_heads: [3, 6, 12, 24]
 mlp_ratio: 4.0
+drop_rate: 0.0
+attn_drop_rate: 0.0
+drop_path_rate: 0.0
 
 # Optimizer & Training
 lr: 0.0003
 weight_decay: 0.05
+opt_betas: [0.9, 0.999]
+opt_eps: 1e-8
 grad_clip: 1.0
 num_epochs: 30
 save_every: 5

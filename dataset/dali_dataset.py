@@ -187,6 +187,7 @@ class DaliDataLoader:
             device_id=device_id,
             shuffle=self.shuffle,
             step=self.stride,
+            prefetch_queue_depth=self.prefetch_queue_depth,
         )
 
     def _load_metadata(self) -> dict:
@@ -204,4 +205,6 @@ class DaliDataLoader:
         return iter(self.clipper)
 
     def __len__(self):
+        return len(self.clipper)
+):
         return len(self.clipper)

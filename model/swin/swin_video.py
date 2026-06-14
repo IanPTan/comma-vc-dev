@@ -180,30 +180,58 @@ class WindowAttention3D(nn.Module):
         return self.proj(out)
 
 
+def drop_path(x, drop_prob: float = 0., training: bool = False, scale_by_keep: bool = True):
+    if drop_prob == 0. or not training:
+        return x
+    keep_prob = 1 - drop_prob
+    shape = (x.shape[0],) + (1,) * (x.ndim - 1)
+    random_tensor = x.new_empty(shape).bernoulli_(keep_prob)
+    if keep_prob > 0.0 and scale_by_keep:
+        random_tensor.div_(keep_prob)
+    return x * random_tensor
+
+class DropPath(nn.Module):
+    def __init__(self, drop_prob: float = 0., scale_by_keep: bool = True):
+        super(DropPath, self).__init__()
+        self.drop_prob = drop_prob
+        self.scale_by_keep = scale_by_keep
+
+    def forward(self, x):
+        return drop_path(x, self.drop_prob, self.training, self.scale_by_keep)
+
 class MLP(nn.Module):
-    def __init__(self, dim: int, hidden_ratio: float = 4.0):
+    def __init__(self, dim: int, hidden_ratio: float = 4.0, drop: float = 0.0):
         super().__init__()
         hidden = int(dim * hidden_ratio)
         self.fc1 = nn.Linear(dim, hidden)
         self.act = nn.GELU()
         self.fc2 = nn.Linear(hidden, dim)
+        self.drop = nn.Dropout(drop)
 
     def forward(self, x):
-        return self.fc2(self.act(self.fc1(x)))
+        x = self.fc1(x)
+        x = self.act(x)
+        x = self.drop(x)
+        x = self.fc2(x)
+        x = self.drop(x)
+        return x
 
 
 class SwinBlock3D(nn.Module):
     def __init__(self, dim: int, num_heads: int,
                  window_size: Tuple[int, int, int],
                  shift_size: Tuple[int, int, int],
-                 mlp_ratio: float = 4.0):
+                 mlp_ratio: float = 4.0,
+                 drop: float = 0.0, attn_drop: float = 0.0,
+                 drop_path: float = 0.0):
         super().__init__()
         self.window_size = window_size
         self.shift_size = shift_size
         self.norm1 = nn.LayerNorm(dim)
-        self.attn = WindowAttention3D(dim, window_size, num_heads)
+        self.attn = WindowAttention3D(dim, window_size, num_heads, attn_drop=attn_drop, proj_drop=drop)
+        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
         self.norm2 = nn.LayerNorm(dim)
-        self.mlp = MLP(dim, mlp_ratio)
+        self.mlp = MLP(dim, mlp_ratio, drop=drop)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x: (B, T, H, W, C)
@@ -230,9 +258,10 @@ class SwinBlock3D(nn.Module):
         if any(s > 0 for s in self.shift_size):
             x = torch.roll(x, shifts=(sT, sH, sW), dims=(1, 2, 3))
 
-        x = shortcut + x
-        x = x + self.mlp(self.norm2(x))
+        x = shortcut + self.drop_path(x)
+        x = x + self.drop_path(self.mlp(self.norm2(x)))
         return x
+
 
 
 # --------------------------------------------------------------------------- #
@@ -242,7 +271,9 @@ class SwinStage3D(nn.Module):
     def __init__(self, dim: int, depth: int, num_heads: int,
                  window_size: Tuple[int, int, int],
                  feat_size: Tuple[int, int, int],
-                 downsample: bool, mlp_ratio: float = 4.0):
+                 downsample: bool, mlp_ratio: float = 4.0,
+                 drop: float = 0.0, attn_drop: float = 0.0,
+                 drop_path: list[float] | float = 0.0):
         super().__init__()
         # Clamp window to feature size (Swin handles "feature smaller than window"
         # by treating the whole feature map as a single window with no shifting).
@@ -257,7 +288,10 @@ class SwinStage3D(nn.Module):
             SwinBlock3D(
                 dim, num_heads, eff_window,
                 shift_size=(0, 0, 0) if (i % 2 == 0) else shift,
+                feat_size=feat_size,
                 mlp_ratio=mlp_ratio,
+                drop=drop, attn_drop=attn_drop,
+                drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
             )
             for i in range(depth)
         ])
@@ -298,6 +332,9 @@ class SwinVideoEncoder(nn.Module):
         depths: Tuple[int, ...] = (2, 2, 6, 2),
         num_heads: Tuple[int, ...] = (3, 6, 12, 24),
         mlp_ratio: float = 4.0,
+        drop_rate: float = 0.0,
+        attn_drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
     ):
         super().__init__()
         assert len(depths) == len(num_heads)
@@ -312,6 +349,9 @@ class SwinVideoEncoder(nn.Module):
         H = input_size[1] // patch_size[1]
         W = input_size[2] // patch_size[2]
         self._validate_dims(T, H, W, len(depths))
+        
+        # stochastic depth decay rule
+        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))]
 
         self.stages = nn.ModuleList()
         dim = embed_dim
@@ -324,6 +364,8 @@ class SwinVideoEncoder(nn.Module):
                 feat_size=(cur_T, cur_H, cur_W),
                 downsample=not is_last,
                 mlp_ratio=mlp_ratio,
+                drop=drop_rate, attn_drop=attn_drop_rate,
+                drop_path=dpr[sum(depths[:i]):sum(depths[:i + 1])],
             ))
             if not is_last:
                 dim *= 2
@@ -413,6 +455,9 @@ class SwinVideoDecoder(nn.Module):
         depths: Tuple[int, ...],                  # encoder depths (used reversed)
         num_heads: Tuple[int, ...],               # encoder num_heads (used reversed)
         mlp_ratio: float = 4.0,
+        drop_rate: float = 0.0,
+        attn_drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
     ):
         super().__init__()
         n_stages = len(depths)
@@ -430,6 +475,9 @@ class SwinVideoDecoder(nn.Module):
         # Order from deep -> shallow.
         rev_depths = list(reversed(depths))
         rev_heads = list(reversed(num_heads))
+        
+        # stochastic depth decay rule
+        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))]
 
         for i in range(n_stages):
             # Refine current resolution with a Swin stage (no downsample).
@@ -441,6 +489,8 @@ class SwinVideoDecoder(nn.Module):
                 feat_size=(cur_T, cur_H, cur_W),
                 downsample=False,
                 mlp_ratio=mlp_ratio,
+                drop=drop_rate, attn_drop=attn_drop_rate,
+                drop_path=dpr[sum(rev_depths[:i]):sum(rev_depths[:i + 1])],
             ))
             # Then expand (unless this is the last stage, which equals embed_dim).
             if i < n_stages - 1:
@@ -486,13 +536,17 @@ class SwinVideoAutoencoder(nn.Module):
         depths: Tuple[int, ...] = (2, 2, 6, 2),
         num_heads: Tuple[int, ...] = (3, 6, 12, 24),
         mlp_ratio: float = 4.0,
+        drop_rate: float = 0.0,
+        attn_drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
     ):
         super().__init__()
         self.encoder = SwinVideoEncoder(
             input_size=input_size, in_channels=in_channels,
             patch_size=patch_size, window_size=window_size,
             embed_dim=embed_dim, depths=depths, num_heads=num_heads,
-            mlp_ratio=mlp_ratio,
+            mlp_ratio=mlp_ratio, drop_rate=drop_rate, 
+            attn_drop_rate=attn_drop_rate, drop_path_rate=drop_path_rate,
         )
 
         # Feature-map size at encoder output (used to size the decoder).
@@ -513,6 +567,9 @@ class SwinVideoAutoencoder(nn.Module):
             depths=depths,
             num_heads=num_heads,
             mlp_ratio=mlp_ratio,
+            drop_rate=drop_rate,
+            attn_drop_rate=attn_drop_rate,
+            drop_path_rate=drop_path_rate,
         )
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:

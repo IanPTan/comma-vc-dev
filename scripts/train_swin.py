@@ -82,6 +82,8 @@ def parse_args(defaults):
     p.add_argument("--clip-frames", type=int, default=defaults.get("clip_frames", 16),
                    help="Frames per clip. Must be divisible by patch_t * window_t.")
     p.add_argument("--frame-size", type=int, default=defaults.get("frame_size", 256))
+    p.add_argument("--stride", type=int, default=defaults.get("stride", 16), help="Stride between window starts.")
+    p.add_argument("--prefetch-queue-depth", type=int, default=defaults.get("prefetch_queue_depth", 4))
     p.add_argument("--end-safety-margin", type=int, default=defaults.get("end_safety_margin", 200),
                    help="Frames trimmed off the end of each .mkv.")
 
@@ -93,15 +95,29 @@ def parse_args(defaults):
     p.add_argument("--embed-dim", type=int, default=defaults.get("embed_dim", 96))
     p.add_argument("--depths", type=int, nargs="+", default=defaults.get("depths", [2, 2, 6, 2]))
     p.add_argument("--num-heads", type=int, nargs="+", default=defaults.get("num_heads", [3, 6, 12, 24]))
+    p.add_argument("--mlp-ratio", type=float, default=defaults.get("mlp_ratio", 4.0))
+    p.add_argument("--drop-rate", type=float, default=defaults.get("drop_rate", 0.0))
+    p.add_argument("--attn-drop-rate", type=float, default=defaults.get("attn_drop_rate", 0.0))
+    p.add_argument("--drop-path-rate", type=float, default=defaults.get("drop_path_rate", 0.0))
 
     # Optim / training
     p.add_argument("--lr", type=float, default=defaults.get("lr", 3e-4))
     p.add_argument("--weight-decay", type=float, default=defaults.get("weight_decay", 0.05))
+    p.add_argument("--opt-betas", type=float, nargs=2, default=defaults.get("opt_betas", [0.9, 0.999]))
+    p.add_argument("--opt-eps", type=float, default=defaults.get("opt_eps", 1e-8))
     p.add_argument("--grad-clip", type=float, default=defaults.get("grad_clip", 1.0))
     p.add_argument("--num-epochs", type=int, default=defaults.get("num_epochs", 30))
     p.add_argument("--save-every", type=int, default=defaults.get("save_every", 5))
     p.add_argument("--max-batches-per-epoch", type=int, default=None)
-    p.add_argument("--compile", action="store_true")
+    
+    # Use boolean parsing for compile flag instead of store_true so it can default from yaml
+    def str2bool(v):
+        if isinstance(v, bool): return v
+        if v.lower() in ('yes', 'true', 't', 'y', '1'): return True
+        elif v.lower() in ('no', 'false', 'f', 'n', '0'): return False
+        else: raise argparse.ArgumentTypeError('Boolean value expected.')
+    p.add_argument("--compile", type=str2bool, nargs='?', const=True, default=defaults.get("compile", False))
+    
     p.add_argument("--compile-mode", type=str, default=defaults.get("compile_mode", "default"),
                    choices=["default", "reduce-overhead", "max-autotune"])
     
@@ -165,6 +181,8 @@ def main():
         num_threads=args.workers,
         device=args.device,
         device_id=device_id,
+        stride=args.stride,
+        prefetch_queue_depth=args.prefetch_queue_depth,
         end_safety_margin=args.end_safety_margin,
     )
     print(f"Train batches/epoch: {len(train_loader)}")
@@ -180,6 +198,8 @@ def main():
         num_threads=args.workers,
         device=args.device,
         device_id=device_id,
+        stride=args.stride,
+        prefetch_queue_depth=args.prefetch_queue_depth,
         end_safety_margin=args.end_safety_margin,
     )
     print(f"Val batches/epoch:   {len(val_loader)}")
