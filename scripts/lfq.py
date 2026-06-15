@@ -12,6 +12,7 @@ per video segment.
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 
 
 def _conv3d(in_c, out_c):
@@ -91,6 +92,9 @@ class LFQ(nn.Module):
         diversity_gamma: float = 1.0,
         temperature: float = 1.0,
         usage_ema_decay: float = 0.99,
+        # tokens processed per softmax(N, codebook_size). At codebook_dim=14, fp16:
+        # 65536 -> ~6 GB peak per chunk; activations checkpointed away after each.
+        entropy_chunk_size: int = 65536,
     ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -101,6 +105,7 @@ class LFQ(nn.Module):
         self.diversity_gamma = diversity_gamma
         self.temperature = temperature
         self.usage_ema_decay = usage_ema_decay
+        self.entropy_chunk_size = entropy_chunk_size
 
         if embed_dim == codebook_dim:
             self.project_in = nn.Identity()
@@ -145,14 +150,10 @@ class LFQ(nn.Module):
 
         # --- entropy loss ---
         # For ±1 codes, ||c||^2 = D is constant, so softmax(-||z-c||^2/τ)
-        # reduces to softmax(2 z·c / τ).
-        logits = (2.0 / self.temperature) * (flat_z @ self.codebook.t())  # [N, 2^D]
-        probs = F.softmax(logits, dim=-1)
-        log_probs = F.log_softmax(logits, dim=-1)
-
-        per_sample_entropy = -(probs * log_probs).sum(dim=-1).mean()
-        avg_probs = probs.mean(dim=0)
-        batch_entropy = -(avg_probs * (avg_probs + 1e-10).log()).sum()
+        # reduces to softmax(2 z·c / τ). The [N, 2^D] tensors get enormous at
+        # scale (746k tokens x 16k codes = 24 GB each), so we chunk over N
+        # and use gradient checkpointing per chunk.
+        per_sample_entropy, batch_entropy = self._entropy_loss(flat_z)
         entropy_loss = per_sample_entropy - self.diversity_gamma * batch_entropy
 
         loss = (
@@ -176,6 +177,41 @@ class LFQ(nn.Module):
 
         token_ids = token_ids.view(B, *spatial)
         return quantized_st, loss, token_ids
+
+    def _entropy_chunk(self, z_chunk):
+        """One pass of the [chunk, 2^D] softmax. Returns (h_sum, prob_sum) where
+        h_sum is the unnormalized sum of per-row entropies and prob_sum is the
+        per-code sum of probs across the chunk."""
+        logits = (2.0 / self.temperature) * (z_chunk @ self.codebook.t())
+        log_probs = F.log_softmax(logits, dim=-1)
+        probs = log_probs.exp()
+        h_sum = -(probs * log_probs).sum()
+        prob_sum = probs.sum(dim=0)
+        return h_sum, prob_sum
+
+    def _entropy_loss(self, flat_z):
+        """Chunked over N to bound the [N, 2^D] tensor sizes. Per-chunk forward
+        is checkpointed during training so the chunk's logits/probs/log_probs
+        get freed and recomputed on backward."""
+        N = flat_z.shape[0]
+        chunk = min(N, self.entropy_chunk_size)
+        # accumulate in fp32 so many fp16 adds don't lose precision
+        h_sum_total = flat_z.new_zeros((), dtype=torch.float32)
+        prob_sum_total = flat_z.new_zeros(self.codebook_size, dtype=torch.float32)
+        for i in range(0, N, chunk):
+            z_chunk = flat_z[i:i + chunk]
+            if self.training and z_chunk.requires_grad:
+                h_sum, prob_sum = checkpoint(
+                    self._entropy_chunk, z_chunk, use_reentrant=False
+                )
+            else:
+                h_sum, prob_sum = self._entropy_chunk(z_chunk)
+            h_sum_total = h_sum_total + h_sum.float()
+            prob_sum_total = prob_sum_total + prob_sum.float()
+        per_sample_entropy = h_sum_total / N
+        avg_probs = prob_sum_total / N
+        batch_entropy = -(avg_probs * (avg_probs + 1e-10).log()).sum()
+        return per_sample_entropy, batch_entropy
 
     def codebook_usage(self):
         used = (self.code_usage > 1e-3).sum().item()
@@ -206,6 +242,11 @@ class LFQVAE(nn.Module):
         num_downsamples: int = 3,
         entropy_loss_weight: float = 0.1,
         commitment_loss_weight: float = 0.25,
+        # If True, the encoder and decoder forwards are wrapped in
+        # torch.utils.checkpoint - intermediate activations are dropped after
+        # forward and recomputed during backward. Trades ~1.5x backward time
+        # for a large memory cut. Needed for native-res training at batch > ~4.
+        use_checkpoint: bool = False,
         # accepted but unused; lets train.py's --num-embeddings flag pass through
         num_embeddings: int | None = None,
     ):
@@ -218,12 +259,18 @@ class LFQVAE(nn.Module):
             commitment_loss_weight=commitment_loss_weight,
         )
         self.decoder = Decoder(in_channels, hidden_dim, embed_dim, num_downsamples)
+        self.use_checkpoint = use_checkpoint
+
+    def _run(self, module, x):
+        if self.use_checkpoint and self.training and x.requires_grad:
+            return checkpoint(module, x, use_reentrant=False)
+        return module(x)
 
     def forward(self, x):
         # x: (B, C, T, H, W)
-        z = self.encoder(x)
+        z = self._run(self.encoder, x)
         q, q_loss, tokens = self.quantizer(z)
-        recon = self.decoder(q)
+        recon = self._run(self.decoder, q)
         return recon, q_loss, tokens
 
     def encode(self, x):
