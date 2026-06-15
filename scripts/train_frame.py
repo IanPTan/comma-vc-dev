@@ -302,7 +302,7 @@ def main():
         val_loader=val_loader,
         save_every=config["save_every"],
         grad_clip=config["grad_clip"],
-        max_batches_per_epoch=config["max_batches_per_epoch"],
+        max_batches_per_epoch=config.get("max_batches_per_epoch", None),
         resume_epoch=resume_epoch,
         mask_ratio=config["mask_ratio"],
     )

@@ -32,5 +32,6 @@ warmup_epochs: 5
 num_epochs: 40
 grad_clip: 1.0
 save_every: 5
-compile: true
+max_batches_per_epoch: null
+compile: false
 compile_mode: "default"
