@@ -200,7 +200,7 @@ class LFQ(nn.Module):
         prob_sum_total = flat_z.new_zeros(self.codebook_size, dtype=torch.float32)
         for i in range(0, N, chunk):
             z_chunk = flat_z[i:i + chunk]
-            if self.training and z_chunk.requires_grad:
+            if self.training:
                 h_sum, prob_sum = checkpoint(
                     self._entropy_chunk, z_chunk, use_reentrant=False
                 )
@@ -262,7 +262,10 @@ class LFQVAE(nn.Module):
         self.use_checkpoint = use_checkpoint
 
     def _run(self, module, x):
-        if self.use_checkpoint and self.training and x.requires_grad:
+        # The encoder input doesn't require_grad (it's the raw batch), so we
+        # check self.training instead of x.requires_grad. checkpoint(use_reentrant=False)
+        # works fine in this case because the module's params provide the grad path.
+        if self.use_checkpoint and self.training:
             return checkpoint(module, x, use_reentrant=False)
         return module(x)
 
