@@ -13,4 +13,5 @@ dependencies = [
     "torch>=2.12.0",
     "tqdm>=4.68.1",
     "nvidia-dali-cuda120>=2.1.0",
+    "zarr>=2.18.2",
 ]
