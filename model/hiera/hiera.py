@@ -270,13 +270,27 @@ class Hiera(nn.Module):
             self.pos_embed = nn.Parameter(torch.zeros(1, num_tokens, embed_dim))
 
         # Setup roll and reroll modules
+        # Calculate unroll schedule based on mask_unit_size and q_stride
+        num_transitions = len(self.stage_ends[:-1])
+        unroll_schedule = []
+        current_strides = [1] * len(mask_unit_size)
+        for _ in range(num_transitions):
+            step_stride = []
+            for d in range(len(mask_unit_size)):
+                if current_strides[d] < mask_unit_size[d]:
+                    step_stride.append(q_stride[d])
+                    current_strides[d] *= q_stride[d]
+                else:
+                    step_stride.append(1)
+            unroll_schedule.append(tuple(step_stride))
+
         self.unroll = Unroll(
-            input_size, patch_stride, [q_stride] * len(self.stage_ends[:-1])
+            input_size, patch_stride, unroll_schedule
         )
         self.reroll = Reroll(
             input_size,
             patch_stride,
-            [q_stride] * len(self.stage_ends[:-1]),
+            unroll_schedule,
             self.stage_ends,
             q_pool,
         )
