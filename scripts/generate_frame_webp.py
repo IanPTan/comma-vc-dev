@@ -6,8 +6,7 @@ import subprocess
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
-import zarr
-from numcodecs import Blosc
+from PIL import Image
 import torch
 from tqdm import tqdm
 from typing import List, Tuple, Dict
@@ -19,13 +18,11 @@ from nvidia.dali.plugin.pytorch import DALIGenericIterator, LastBatchPolicy
 
 def get_video_info(mkv_path: pathlib.Path) -> Tuple[int, int, int]:
     """Get original width, height, and total frame count of video using ffprobe."""
-    # 1. Get width and height
     cmd_dim = [
         "ffprobe", "-v", "error", "-select_streams", "v:0",
         "-show_entries", "stream=width,height",
         "-of", "csv=p=0", str(mkv_path)
     ]
-    # 2. Get frame count
     cmd_count = [
         "ffprobe", "-v", "error", "-select_streams", "v:0",
         "-count_packets", "-show_entries", "stream=nb_read_packets",
@@ -40,11 +37,10 @@ def get_video_info(mkv_path: pathlib.Path) -> Tuple[int, int, int]:
         count = int(out_count) if out_count else 0
         return w, h, count
     except Exception as e:
-        # Fallback to standard
         return 1164, 874, 1197
 
-def round_to_multiple_of_64(val: int) -> int:
-    return int(round(val / 64.0) * 64)
+def get_multiple_of_64_less_than(val: int) -> int:
+    return (val // 64) * 64
 
 @pipeline_def
 def video_extraction_pipe(mkv_path: str, interval: int, target_w: int, target_h: int):
@@ -71,7 +67,8 @@ def process_single_video(
     gpu_id: int,
     target_w: int,
     target_h: int,
-    z_arr: zarr.Array,
+    output_dir: pathlib.Path,
+    quality: int,
     pbar: tqdm,
     pbar_lock: threading.Lock
 ):
@@ -119,11 +116,18 @@ def process_single_video(
             if num_in_batch <= 0:
                 break
 
-            # Write directly to Zarr slice
-            w_start = start_idx + frames_written
-            w_end = w_start + num_in_batch
-            z_arr[w_start:w_end] = frames_cpu[:num_in_batch]
-            
+            # Save each frame in the batch as a WebP image
+            for i in range(num_in_batch):
+                img_idx = start_idx + frames_written + i
+                img_path = output_dir / f"{img_idx:06d}.webp"
+                
+                # Convert shape [C, H, W] -> [H, W, C]
+                img_hwc = frames_cpu[i].transpose(1, 2, 0)
+                
+                # Save as WEBP image
+                img = Image.fromarray(img_hwc)
+                img.save(img_path, "WEBP", quality=quality)
+                
             frames_written += num_in_batch
             with pbar_lock:
                 pbar.update(num_in_batch)
@@ -138,16 +142,18 @@ def process_single_video(
         print(f"\nError processing {mkv_path.name}: {e}")
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate a frame dataset in Zarr format using GPU DALI.")
+    parser = argparse.ArgumentParser(description="Generate a frame dataset as WebP images using GPU DALI.")
     parser.add_argument("--data-dir", type=str, default="data/comma2k19", help="Path to the processed dataset root.")
-    parser.add_argument("--output", type=str, default="data/comma2k19_frames.zarr", help="Path to the output Zarr directory.")
+    parser.add_argument("--output", type=str, default="data/comma2k19_frames", help="Path to the output frames directory.")
     parser.add_argument("--interval", type=int, default=20, help="Interval between extracted frames.")
     parser.add_argument("-w", "--workers", type=int, default=4, help="Number of parallel extraction workers.")
     parser.add_argument("--gpu-id", type=int, default=0, help="GPU device ID to use for decoding.")
+    parser.add_argument("--quality", type=int, default=90, help="WebP compression quality (0-100).")
     args = parser.parse_args()
 
     data_root = pathlib.Path(args.data_dir)
     output_path = pathlib.Path(args.output)
+    output_path.mkdir(parents=True, exist_ok=True)
     
     # Ensure CUDA is available
     if not torch.cuda.is_available():
@@ -188,10 +194,10 @@ def main():
     # Detect resolution from first file
     print(f"Detecting target resolution from first file...")
     orig_w, orig_h, _ = get_video_info(mkv_files[0])
-    target_w = round_to_multiple_of_64(orig_w)
-    target_h = round_to_multiple_of_64(orig_h)
+    target_w = get_multiple_of_64_less_than(orig_w)
+    target_h = get_multiple_of_64_less_than(orig_h)
     print(f"Original Resolution: {orig_w}x{orig_h}")
-    print(f"Target Resolution (nearest multiple of 64): {target_w}x{target_h}")
+    print(f"Target Resolution (closest multiple of 64 less than actual): {target_w}x{target_h}")
 
     # Calculate exact frames to extract per file and cumulative offsets
     video_write_info = []
@@ -210,28 +216,28 @@ def main():
 
     print(f"Total files: {len(mkv_files)}")
     print(f"Total frames to extract: {total_extracted_frames}")
-    print(f"Initializing Zarr dataset at {output_path}...")
 
-    # Fast Blosc LZ4 compressor
-    compressor = Blosc(cname='lz4', clevel=5, shuffle=Blosc.SHUFFLE)
-    
-    # Initialize Zarr array in Zarr v2 format for maximum compatibility and compressor support
-    z_arr = zarr.open(
-        store=str(output_path),
-        mode='w',
-        shape=(total_extracted_frames, 3, target_h, target_w),
-        chunks=(1, 3, target_h, target_w),
-        dtype='uint8',
-        compressor=compressor,
-        zarr_format=2
-    )
+    # Create metadata dictionary to save as JSON
+    metadata = {
+        "original_width": orig_w,
+        "original_height": orig_h,
+        "new_width": target_w,
+        "new_height": target_h,
+        "interval": args.interval,
+        "total_frames": total_extracted_frames,
+        "videos": [
+            {
+                "rel_path": info["rel_path"],
+                "start_idx": info["start_idx"],
+                "num_frames": info["num_frames"]
+            }
+            for info in video_write_info
+        ]
+    }
 
-    # Save original and new dimensions as attributes on the dataset
-    z_arr.attrs['original_width'] = orig_w
-    z_arr.attrs['original_height'] = orig_h
-    z_arr.attrs['new_width'] = target_w
-    z_arr.attrs['new_height'] = target_h
-    z_arr.attrs['interval'] = args.interval
+    # Save metadata JSON file
+    with open(output_path / "metadata.json", "w") as f:
+        json.dump(metadata, f, indent=2)
 
     print(f"Starting DALI-based frame extraction with {args.workers} threads...")
     
@@ -246,7 +252,8 @@ def main():
                     args.gpu_id,
                     target_w,
                     target_h,
-                    z_arr,
+                    output_path,
+                    args.quality,
                     pbar,
                     pbar_lock
                 )
@@ -254,10 +261,9 @@ def main():
             ]
             
             for future in as_completed(futures):
-                # Propagate any thread exceptions if they occurred
                 future.result()
 
-    print(f"\nSuccess! Extracted {total_extracted_frames} frames to {output_path}")
+    print(f"\nSuccess! Extracted {total_extracted_frames} frames as WebP to {output_path}")
 
 if __name__ == "__main__":
     main()
