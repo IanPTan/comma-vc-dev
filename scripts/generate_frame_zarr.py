@@ -3,6 +3,8 @@ import json
 import math
 import pathlib
 import subprocess
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
 import zarr
 from numcodecs import Blosc
@@ -63,11 +65,84 @@ def video_extraction_pipe(mkv_path: str, interval: int, target_w: int, target_h:
     # Transpose layout from (F, H, W, C) to (C, F, H, W)
     return fn.transpose(video, perm=[3, 0, 1, 2])
 
+def process_single_video(
+    info: dict,
+    interval: int,
+    gpu_id: int,
+    target_w: int,
+    target_h: int,
+    z_arr: zarr.Array,
+    pbar: tqdm,
+    pbar_lock: threading.Lock
+):
+    mkv_path = info['path']
+    start_idx = info['start_idx']
+    expected_frames = info['num_frames']
+    
+    if expected_frames == 0:
+        return
+
+    # Capped at 64 for parallel GPU decoding efficiency
+    batch_size = min(64, expected_frames)
+
+    try:
+        # Build DALI pipeline
+        pipe = video_extraction_pipe(
+            batch_size=batch_size,
+            num_threads=2,
+            device_id=gpu_id,
+            mkv_path=str(mkv_path),
+            interval=interval,
+            target_w=target_w,
+            target_h=target_h
+        )
+        pipe.build()
+
+        iterator = DALIGenericIterator(
+            [pipe],
+            output_map=["video"],
+            last_batch_policy=LastBatchPolicy.PARTIAL,
+            auto_reset=False
+        )
+
+        frames_written = 0
+        for data in iterator:
+            vid = data[0]["video"]  # shape [B, C, F, H, W] where F=1
+            # Squeeze the sequence length (F=1) dimension
+            frames_gpu = vid.squeeze(2)
+            
+            # Copy directly to CPU numpy array
+            frames_cpu = frames_gpu.cpu().numpy()
+            
+            # Cap the batch size to avoid writing DALI-padded frames
+            num_in_batch = min(frames_cpu.shape[0], expected_frames - frames_written)
+            if num_in_batch <= 0:
+                break
+
+            # Write directly to Zarr slice
+            w_start = start_idx + frames_written
+            w_end = w_start + num_in_batch
+            z_arr[w_start:w_end] = frames_cpu[:num_in_batch]
+            
+            frames_written += num_in_batch
+            with pbar_lock:
+                pbar.update(num_in_batch)
+
+            if frames_written >= expected_frames:
+                break
+
+        # Clean up current pipeline & iterator
+        del iterator
+        del pipe
+    except Exception as e:
+        print(f"\nError processing {mkv_path.name}: {e}")
+
 def main():
     parser = argparse.ArgumentParser(description="Generate a frame dataset in Zarr format using GPU DALI.")
     parser.add_argument("--data-dir", type=str, default="data/comma2k19", help="Path to the processed dataset root.")
     parser.add_argument("--output", type=str, default="data/comma2k19_frames.zarr", help="Path to the output Zarr directory.")
     parser.add_argument("--interval", type=int, default=20, help="Interval between extracted frames.")
+    parser.add_argument("-w", "--workers", type=int, default=4, help="Number of parallel extraction workers.")
     parser.add_argument("--gpu-id", type=int, default=0, help="GPU device ID to use for decoding.")
     args = parser.parse_args()
 
@@ -140,7 +215,7 @@ def main():
     # Fast Blosc LZ4 compressor
     compressor = Blosc(cname='lz4', clevel=5, shuffle=Blosc.SHUFFLE)
     
-    # Initialize Zarr array
+    # Initialize Zarr array in Zarr v2 format for maximum compatibility and compressor support
     z_arr = zarr.open(
         store=str(output_path),
         mode='w',
@@ -158,68 +233,29 @@ def main():
     z_arr.attrs['new_height'] = target_h
     z_arr.attrs['interval'] = args.interval
 
-    print("Starting DALI-based frame extraction...")
+    print(f"Starting DALI-based frame extraction with {args.workers} threads...")
     
+    pbar_lock = threading.Lock()
     with tqdm(total=total_extracted_frames, desc="Extracting frames") as pbar:
-        for info in video_write_info:
-            mkv_path = info['path']
-            start_idx = info['start_idx']
-            expected_frames = info['num_frames']
+        with ThreadPoolExecutor(max_workers=args.workers) as executor:
+            futures = [
+                executor.submit(
+                    process_single_video,
+                    info,
+                    args.interval,
+                    args.gpu_id,
+                    target_w,
+                    target_h,
+                    z_arr,
+                    pbar,
+                    pbar_lock
+                )
+                for info in video_write_info
+            ]
             
-            if expected_frames == 0:
-                continue
-
-            # Batch size is capped at expected_frames or 32 for parallel GPU decoding efficiency
-            batch_size = min(32, expected_frames)
-
-            # Build DALI pipeline
-            pipe = video_extraction_pipe(
-                batch_size=batch_size,
-                num_threads=2,
-                device_id=args.gpu_id,
-                mkv_path=str(mkv_path),
-                interval=args.interval,
-                target_w=target_w,
-                target_h=target_h
-            )
-            pipe.build()
-
-            iterator = DALIGenericIterator(
-                [pipe],
-                output_map=["video"],
-                last_batch_policy=LastBatchPolicy.PARTIAL,
-                auto_reset=False
-            )
-
-            frames_written = 0
-            for data in iterator:
-                vid = data[0]["video"]  # shape [B, C, F, H, W] where F=1
-                # Squeeze the sequence length (F=1) dimension
-                frames_gpu = vid.squeeze(2)
-                
-                # Copy directly to CPU numpy array
-                frames_cpu = frames_gpu.cpu().numpy()
-                
-                # Cap the batch size to avoid writing DALI-padded frames
-                num_in_batch = min(frames_cpu.shape[0], expected_frames - frames_written)
-                if num_in_batch <= 0:
-                    break
-
-                # Write directly to Zarr slice
-                w_start = start_idx + frames_written
-                w_end = w_start + num_in_batch
-                z_arr[w_start:w_end] = frames_cpu[:num_in_batch]
-                
-                frames_written += num_in_batch
-                pbar.update(num_in_batch)
-
-                if frames_written >= expected_frames:
-                    break
-
-            # Clean up current pipeline & iterator to prevent GPU memory bloat
-            del iterator
-            del pipe
-            torch.cuda.empty_cache()
+            for future in as_completed(futures):
+                # Propagate any thread exceptions if they occurred
+                future.result()
 
     print(f"\nSuccess! Extracted {total_extracted_frames} frames to {output_path}")
 
