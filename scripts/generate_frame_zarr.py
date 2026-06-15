@@ -147,7 +147,8 @@ def main():
         shape=(total_extracted_frames, 3, target_h, target_w),
         chunks=(1, 3, target_h, target_w),
         dtype='uint8',
-        compressor=compressor
+        compressor=compressor,
+        zarr_format=2
     )
 
     # Save original and new dimensions as attributes on the dataset
