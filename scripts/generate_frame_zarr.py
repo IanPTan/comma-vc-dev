@@ -141,9 +141,8 @@ def main():
     compressor = Blosc(cname='lz4', clevel=5, shuffle=Blosc.SHUFFLE)
     
     # Initialize Zarr array
-    store = zarr.DirectoryStore(str(output_path))
     z_arr = zarr.open(
-        store=store,
+        store=str(output_path),
         mode='w',
         shape=(total_extracted_frames, 3, target_h, target_w),
         chunks=(1, 3, target_h, target_w),
