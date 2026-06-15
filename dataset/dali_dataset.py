@@ -206,5 +206,4 @@ class DaliDataLoader:
 
     def __len__(self):
         return len(self.clipper)
-):
-        return len(self.clipper)
+
