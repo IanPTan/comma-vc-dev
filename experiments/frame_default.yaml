@@ -9,6 +9,7 @@ val_split: 0.1
 batch_size: 16
 workers: 4
 mask_ratio: 0.6
+shuffle: true
 
 # Model Architecture (Hiera-Tiny default adjusted for 52x72 token dimensions)
 embed_dim: 96

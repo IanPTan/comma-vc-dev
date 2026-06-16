@@ -102,6 +102,7 @@ def get_explicit_cli_args():
     p.add_argument("--compile", type=str2bool, nargs='?')
     p.add_argument("--compile-mode", type=str)
     p.add_argument("--freeze-mask", type=str2bool, nargs='?')
+    p.add_argument("--shuffle", type=str2bool, nargs='?')
     
     parsed, _ = p.parse_known_args()
     return vars(parsed)
@@ -230,10 +231,14 @@ def main():
     print(f"Dataset Frame Resolution: {img_w}x{img_h}")
 
 
+    should_shuffle = config.get("shuffle", True)
+    if config.get("freeze_mask", False):
+        should_shuffle = False
+
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=config["batch_size"],
-        shuffle=True,
+        shuffle=should_shuffle,
         num_workers=config["workers"],
         pin_memory=True,
         drop_last=True
