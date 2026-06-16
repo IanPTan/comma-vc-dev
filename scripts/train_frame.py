@@ -274,8 +274,11 @@ def main():
     optimizer = torch.optim.AdamW(param_groups, lr=scaled_lr)
 
     # Cosine learning rate schedule with step-level linear warmup
-    total_steps = len(train_loader) * config["num_epochs"]
-    warmup_steps = len(train_loader) * config["warmup_epochs"]
+    steps_per_epoch = len(train_loader)
+    if config.get("max_batches_per_epoch") is not None:
+        steps_per_epoch = min(steps_per_epoch, config["max_batches_per_epoch"])
+    total_steps = steps_per_epoch * config["num_epochs"]
+    warmup_steps = steps_per_epoch * config["warmup_epochs"]
     scheduler = get_cosine_schedule_with_warmup(optimizer, warmup_steps, total_steps)
 
     # 9. Resume from Checkpoint

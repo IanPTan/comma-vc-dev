@@ -193,13 +193,7 @@ def train_frame(
         except Exception as e:
             print(f"Warning: could not restore GradScaler state: {e}")
 
-    # We will pick a fixed batch from validation loader for consistent epoch-wise visualization
-    vis_batch = None
-    if val_loader is not None:
-        # Get first batch
-        for b in val_loader:
-            vis_batch = b
-            break
+    # (Visualizations removed from training loop)
 
     for epoch in range(resume_epoch, num_epochs):
         model.train()
@@ -268,9 +262,7 @@ def train_frame(
 
         print(f"Epoch {epoch+1}: train_loss={avg_train_loss:.4f} | val_loss={avg_val_loss:.4f}")
 
-        # Save visualization of reconstructions (runs in float32 for safety)
-        if vis_batch is not None:
-            visualize_reconstruction(model, vis_batch, device, epoch, vis_dir)
+        # (Visualizations removed from training loop)
 
         # Checkpoints setup
         checkpoint = {
