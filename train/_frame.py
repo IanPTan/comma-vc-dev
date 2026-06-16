@@ -151,6 +151,7 @@ def train_frame(
     mask_ratio: float = 0.6,
     amp: bool = True,
     amp_dtype: str = "float16",
+    max_val_batches: Optional[int] = None,
 ):
     """
     Train Hiera Masked Autoencoder with reconstruction loss.
@@ -243,13 +244,16 @@ def train_frame(
         
         # Validation
         avg_val_loss = np.nan
-        if val_loader is not None:
+        if val_loader is not None and (max_val_batches is None or max_val_batches > 0):
             model.eval()
             val_loss_sum = 0.0
             val_batches = 0
             with torch.no_grad():
                 val_pbar = tqdm(val_loader, desc="Validation", leave=False)
                 for batch in val_pbar:
+                    if max_val_batches is not None and val_batches >= max_val_batches:
+                        val_pbar.close()
+                        break
                     images = batch.to(device)
                     with torch.cuda.amp.autocast(enabled=amp and device.type == "cuda", dtype=dtype):
                         loss, _, _, _ = model(images, mask_ratio=mask_ratio)

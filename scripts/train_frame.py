@@ -90,6 +90,7 @@ def get_explicit_cli_args():
     p.add_argument("--grad-clip", type=float)
     p.add_argument("--save-every", type=int)
     p.add_argument("--max-batches-per-epoch", type=int)
+    p.add_argument("--max-val-batches", type=int)
     
     def str2bool(v):
         if isinstance(v, bool): return v
@@ -309,6 +310,7 @@ def main():
         mask_ratio=config["mask_ratio"],
         amp=config.get("amp", False),
         amp_dtype=config.get("amp_dtype", "float16"),
+        max_val_batches=config.get("max_val_batches", None),
     )
     
     save_final_frame(model, optimizer, stats_path, config["num_epochs"], data_dir)
