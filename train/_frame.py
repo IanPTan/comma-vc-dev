@@ -180,7 +180,7 @@ def train_frame(
     dtype = torch.bfloat16 if amp_dtype == "bfloat16" else torch.float16
 
     # Initialize GradScaler for FP16 Mixed Precision (disabled for BF16 since scaling is not required)
-    scaler = torch.cuda.amp.GradScaler(enabled=amp and device.type == "cuda" and dtype == torch.float16)
+    scaler = torch.amp.GradScaler(device_type="cuda", enabled=amp and device.type == "cuda" and dtype == torch.float16)
     
     # Restore GradScaler state if resuming
     latest_path = os.path.join(save_dir, "checkpoint_latest.pt")
@@ -218,7 +218,7 @@ def train_frame(
             optimizer.zero_grad(set_to_none=True)
             
             # MAE forward pass in mixed precision
-            with torch.cuda.amp.autocast(enabled=amp and device.type == "cuda", dtype=dtype):
+            with torch.amp.autocast(device_type="cuda", enabled=amp and device.type == "cuda", dtype=dtype):
                 loss, pred, label, mask = model(images, mask_ratio=mask_ratio)
             
             # Backward pass with scaled loss
@@ -255,7 +255,7 @@ def train_frame(
                         val_pbar.close()
                         break
                     images = batch.to(device)
-                    with torch.cuda.amp.autocast(enabled=amp and device.type == "cuda", dtype=dtype):
+                    with torch.amp.autocast(device_type="cuda", enabled=amp and device.type == "cuda", dtype=dtype):
                         loss, _, _, _ = model(images, mask_ratio=mask_ratio)
                     val_loss_sum += loss.item()
                     val_batches += 1
