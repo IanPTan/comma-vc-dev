@@ -154,6 +154,7 @@ def train_frame(
     amp: bool = True,
     amp_dtype: str = "float16",
     max_val_batches: Optional[int] = None,
+    freeze_mask: bool = False,
 ):
     """
     Train Hiera Masked Autoencoder with reconstruction loss.
@@ -197,6 +198,7 @@ def train_frame(
 
     # (Visualizations removed from training loop)
 
+    fixed_mask = None
     for epoch in range(resume_epoch, num_epochs):
         model.train()
         epoch_loss = 0.0
@@ -215,7 +217,14 @@ def train_frame(
             
             # MAE forward pass in mixed precision
             with torch.amp.autocast(device_type="cuda", enabled=amp and device.type == "cuda", dtype=dtype):
-                loss, pred, label, mask = model(images, mask_ratio=mask_ratio)
+                if freeze_mask:
+                    if fixed_mask is None:
+                        loss, pred, label, mask = model(images, mask_ratio=mask_ratio)
+                        fixed_mask = mask.clone()
+                    else:
+                        loss, pred, label, mask = model(images, mask_ratio=mask_ratio, mask=fixed_mask)
+                else:
+                    loss, pred, label, mask = model(images, mask_ratio=mask_ratio)
             
             # Backward pass with scaled loss
             scaler.scale(loss).backward()

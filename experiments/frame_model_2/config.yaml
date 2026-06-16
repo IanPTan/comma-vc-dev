@@ -26,15 +26,16 @@ decoder_depth: 4
 decoder_num_heads: 8
 
 # Optimizer & Training
-lr: 0.00015
+lr: 0.0024
 weight_decay: 0.05
-warmup_epochs: 5
-num_epochs: 40
+warmup_epochs: 0
+num_epochs: 150
 grad_clip: 1.0
-save_every: 5
-max_batches_per_epoch: null
-freeze_mask: false
-amp: false
+save_every: 25
+max_batches_per_epoch: 1
+max_val_batches: 0
+freeze_mask: true
+amp: true
 amp_dtype: "float16"
 compile: false
 compile_mode: "default"

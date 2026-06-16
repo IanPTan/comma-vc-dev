@@ -101,6 +101,7 @@ def get_explicit_cli_args():
     p.add_argument("--amp-dtype", type=str, choices=["float16", "bfloat16"])
     p.add_argument("--compile", type=str2bool, nargs='?')
     p.add_argument("--compile-mode", type=str)
+    p.add_argument("--freeze-mask", type=str2bool, nargs='?')
     
     parsed, _ = p.parse_known_args()
     return vars(parsed)
@@ -310,6 +311,7 @@ def main():
         amp=config.get("amp", False),
         amp_dtype=config.get("amp_dtype", "float16"),
         max_val_batches=config.get("max_val_batches", None),
+        freeze_mask=config.get("freeze_mask", False),
     )
     
     save_final_frame(model, optimizer, stats_path, config["num_epochs"], data_dir)
