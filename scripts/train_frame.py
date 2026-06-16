@@ -96,6 +96,8 @@ def get_explicit_cli_args():
         if v.lower() in ('yes', 'true', 't', 'y', '1'): return True
         elif v.lower() in ('no', 'false', 'f', 'n', '0'): return False
         else: raise argparse.ArgumentTypeError('Boolean value expected.')
+    p.add_argument("--amp", type=str2bool, nargs='?')
+    p.add_argument("--amp-dtype", type=str, choices=["float16", "bfloat16"])
     p.add_argument("--compile", type=str2bool, nargs='?')
     p.add_argument("--compile-mode", type=str)
     
@@ -305,6 +307,8 @@ def main():
         max_batches_per_epoch=config.get("max_batches_per_epoch", None),
         resume_epoch=resume_epoch,
         mask_ratio=config["mask_ratio"],
+        amp=config.get("amp", False),
+        amp_dtype=config.get("amp_dtype", "float16"),
     )
     
     save_final_frame(model, optimizer, stats_path, config["num_epochs"], data_dir)

@@ -149,6 +149,8 @@ def train_frame(
     max_batches_per_epoch: Optional[int] = None,
     resume_epoch: int = 0,
     mask_ratio: float = 0.6,
+    amp: bool = True,
+    amp_dtype: str = "float16",
 ):
     """
     Train Hiera Masked Autoencoder with reconstruction loss.
@@ -172,6 +174,23 @@ def train_frame(
             valid_val = val_losses[~np.isnan(val_losses)]
             if len(valid_val) > 0:
                 best_val_loss = np.min(valid_val)
+
+    # Determine mixed precision dtype
+    dtype = torch.bfloat16 if amp_dtype == "bfloat16" else torch.float16
+
+    # Initialize GradScaler for FP16 Mixed Precision (disabled for BF16 since scaling is not required)
+    scaler = torch.cuda.amp.GradScaler(enabled=amp and device.type == "cuda" and dtype == torch.float16)
+    
+    # Restore GradScaler state if resuming
+    latest_path = os.path.join(save_dir, "checkpoint_latest.pt")
+    if resume_epoch > 0 and os.path.exists(latest_path):
+        try:
+            checkpoint = torch.load(latest_path, map_location="cpu")
+            if "scaler_state_dict" in checkpoint:
+                scaler.load_state_dict(checkpoint["scaler_state_dict"])
+                print("Restored GradScaler state.")
+        except Exception as e:
+            print(f"Warning: could not restore GradScaler state: {e}")
 
     # We will pick a fixed batch from validation loader for consistent epoch-wise visualization
     vis_batch = None
@@ -197,14 +216,19 @@ def train_frame(
 
             optimizer.zero_grad(set_to_none=True)
             
-            # MAE forward pass computes reconstruction MSE loss automatically
-            loss, pred, label, mask = model(images, mask_ratio=mask_ratio)
-            loss.backward()
+            # MAE forward pass in mixed precision
+            with torch.cuda.amp.autocast(enabled=amp and device.type == "cuda", dtype=dtype):
+                loss, pred, label, mask = model(images, mask_ratio=mask_ratio)
+            
+            # Backward pass with scaled loss
+            scaler.scale(loss).backward()
             
             if grad_clip > 0:
+                scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
                 
-            optimizer.step()
+            scaler.step(optimizer)
+            scaler.update()
             scheduler.step()
             
             epoch_loss += loss.item()
@@ -227,7 +251,8 @@ def train_frame(
                 val_pbar = tqdm(val_loader, desc="Validation", leave=False)
                 for batch in val_pbar:
                     images = batch.to(device)
-                    loss, _, _, _ = model(images, mask_ratio=mask_ratio)
+                    with torch.cuda.amp.autocast(enabled=amp and device.type == "cuda", dtype=dtype):
+                        loss, _, _, _ = model(images, mask_ratio=mask_ratio)
                     val_loss_sum += loss.item()
                     val_batches += 1
             avg_val_loss = val_loss_sum / max(val_batches, 1)
@@ -239,7 +264,7 @@ def train_frame(
 
         print(f"Epoch {epoch+1}: train_loss={avg_train_loss:.4f} | val_loss={avg_val_loss:.4f}")
 
-        # Save visualization of reconstructions
+        # Save visualization of reconstructions (runs in float32 for safety)
         if vis_batch is not None:
             visualize_reconstruction(model, vis_batch, device, epoch, vis_dir)
 
@@ -249,6 +274,7 @@ def train_frame(
             "model_state_dict": _raw_model(model).state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
             "scheduler_state_dict": scheduler.state_dict(),
+            "scaler_state_dict": scaler.state_dict(),
             "best_val_loss": best_val_loss,
         }
         

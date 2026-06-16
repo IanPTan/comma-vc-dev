@@ -33,5 +33,7 @@ num_epochs: 40
 grad_clip: 1.0
 save_every: 5
 max_batches_per_epoch: null
+amp: false
+amp_dtype: "float16"
 compile: false
 compile_mode: "default"
