@@ -117,6 +117,7 @@ def main():
     parser.add_argument("--config", type=str, help="Path to config.yaml")
     parser.add_argument("--lr", type=float, default=0.0024, help="Learning rate")
     parser.add_argument("--epochs", type=int, default=150, help="Number of training epochs")
+    parser.add_argument("--weight-decay", type=float, default=0.0, help="Weight decay regularization")
     parser.add_argument("--save-every", type=int, default=25, help="Save reconstruction interval")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--smoke-test", action="store_true", help="Run a quick check on dummy data")
@@ -148,6 +149,9 @@ def main():
             "amp": True,
             "amp_dtype": "float16",
         }
+
+    # Override weight_decay if explicitly passed via CLI
+    weight_decay = args.weight_decay if args.weight_decay is not None else config.get("weight_decay", 0.05)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
@@ -227,7 +231,7 @@ def main():
     param_groups = [
         {
             "params": [p for p in decoder_params if p.dim() > 1],
-            "weight_decay": config.get("weight_decay", 0.05)
+            "weight_decay": weight_decay
         },
         {
             "params": [p for p in decoder_params if p.dim() <= 1] + [latent_param],
