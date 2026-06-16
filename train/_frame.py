@@ -180,7 +180,7 @@ def train_frame(
     dtype = torch.bfloat16 if amp_dtype == "bfloat16" else torch.float16
 
     # Initialize GradScaler for FP16 Mixed Precision (disabled for BF16 since scaling is not required)
-    scaler = torch.amp.GradScaler(device_type="cuda", enabled=amp and device.type == "cuda" and dtype == torch.float16)
+    scaler = torch.amp.GradScaler("cuda", enabled=amp and device.type == "cuda" and dtype == torch.float16)
     
     # Restore GradScaler state if resuming
     latest_path = os.path.join(save_dir, "checkpoint_latest.pt")
