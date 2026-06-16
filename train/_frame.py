@@ -90,6 +90,8 @@ def visualize_reconstruction(
         
         # Denormalize predictions
         pred_denorm = pred * std + mean
+        # Correct layout from (C, P, P) to (P, P, C) to match patches_orig
+        pred_denorm = pred_denorm.reshape(B, NH * NW, C, P, P).permute(0, 1, 3, 4, 2).reshape(B, NH * NW, P * P * C)
         
         # Expand pred_mask to match patch dimensions
         pred_mask_expanded = pred_mask.unsqueeze(-1)

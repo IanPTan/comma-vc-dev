@@ -144,6 +144,8 @@ def main():
         std = (var + 1e-6) ** 0.5
         
         pred_denorm = pred * std + mean
+        # Correct layout from (C, P, P) to (P, P, C) to match patches_orig
+        pred_denorm = pred_denorm.reshape(B, NH * NW, C, P, P).permute(0, 1, 3, 4, 2).reshape(B, NH * NW, P * P * C)
         pred_mask_expanded = pred_mask.unsqueeze(-1)
         
         patches_recon = torch.where(pred_mask_expanded, patches_orig, pred_denorm)
