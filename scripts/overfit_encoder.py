@@ -262,6 +262,7 @@ def main():
     # Setup shape metrics for training
     num_mask_units = math.prod(model.tokens_spatial_shape_final)
     all_patches_mask = torch.ones((1, num_mask_units), dtype=torch.bool, device=device)
+    target_labels = model.get_pixel_label_2d(image, all_patches_mask, norm=True)
     pad_width = len(str(args.epochs))
     
     print("Starting overfitting training of the encoder...")
@@ -275,8 +276,12 @@ def main():
             # Run encoder with no masking (mask_ratio=0.0)
             latent, _ = model.forward_encoder(image, mask_ratio=0.0, mask=all_patches_mask)
             
-            # Loss: MSE between encoder prediction and target latent parameter
-            loss = ((latent - target_latent) ** 2).mean()
+            # Run through frozen decoder
+            pred, _ = model.forward_decoder(latent, all_patches_mask)
+            
+            # Loss: Reconstruction MSE on all patches
+            pred_selected = pred[all_patches_mask]
+            loss = ((pred_selected - target_labels) ** 2).mean()
             
         scaler.scale(loss).backward()
         
