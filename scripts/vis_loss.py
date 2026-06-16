@@ -7,7 +7,7 @@ import numpy as np
 
 def main():
     parser = argparse.ArgumentParser(description="Visualize training loss from HDF5 stats.")
-    parser.add_argument("--exp-dir", type=str, required=True, help="Experiment directory.")
+    parser.add_argument("exp_dir", type=str, help="Experiment directory.")
     args = parser.parse_args()
 
     exp_dir = pathlib.Path(args.exp_dir)
