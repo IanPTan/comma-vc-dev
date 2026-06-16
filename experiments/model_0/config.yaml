@@ -1,0 +1,33 @@
+batch_size: 4
+clip_frames: 16
+compile: false
+compile_mode: default
+data_path: data/comma2k19
+depths:
+- 2
+- 2
+- 6
+- 2
+device: gpu
+embed_dim: 96
+end_safety_margin: 200
+exp_dir: null
+frame_size: 256
+grad_clip: 1.0
+lr: 0.0003
+max_batches_per_epoch: null
+num_epochs: 30
+num_heads:
+- 3
+- 6
+- 12
+- 24
+patch_s: 16
+patch_t: 2
+save_every: 5
+seed: 42
+val_path: null
+weight_decay: 0.05
+window_s: 4
+window_t: 8
+workers: 4

@@ -1,0 +1,36 @@
+batch_size: 16
+compile: false
+compile_mode: default
+data_path: data/comma2k19_frames
+decoder_depth: 4
+decoder_embed_dim: 256
+decoder_num_heads: 8
+embed_dim: 96
+grad_clip: 1.0
+lr: 0.00015
+mask_ratio: 0.6
+mask_unit_size:
+- 4
+- 4
+max_batches_per_epoch: null
+mlp_ratio: 4.0
+num_epochs: 40
+num_heads: 1
+patch_stride:
+- 16
+- 16
+q_pool: 2
+q_stride:
+- 2
+- 2
+save_every: 5
+seed: 42
+stages:
+- 1
+- 2
+- 7
+- 2
+val_split: 0.1
+warmup_epochs: 5
+weight_decay: 0.05
+workers: 4
