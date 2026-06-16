@@ -201,8 +201,8 @@ def main():
     print(f"Device: {device} | Experiment: {exp_dir}")
 
     # 6. FrameDataset Initialization
-    # Split JSON is saved alongside metadata to keep splits constant
-    split_path = Path(config["data_path"]) / "dataset_split.json"
+    # Split JSON is saved inside the experiment directory to keep splits constant
+    split_path = Path(exp_dir) / "dataset_split.json"
 
     # Image normalization (standard ImageNet specs)
     transform = T.Compose([

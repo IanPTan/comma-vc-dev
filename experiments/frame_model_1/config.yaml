@@ -1,0 +1,39 @@
+# Default Hyperparameters for Hiera MAE Frame-level Training
+
+# Experiment Management
+seed: 42
+
+# Data
+data_path: "data/comma2k19_frames"
+val_split: 0.1
+batch_size: 16
+workers: 4
+mask_ratio: 0.6
+
+# Model Architecture (Hiera-Tiny default adjusted for 52x72 token dimensions)
+embed_dim: 96
+num_heads: 1
+stages: [1, 2, 7, 2]
+q_pool: 2
+q_stride: [2, 2]
+mask_unit_size: [4, 4]
+patch_stride: [16, 16]
+mlp_ratio: 4.0
+
+# Decoder Configuration
+decoder_embed_dim: 256
+decoder_depth: 4
+decoder_num_heads: 8
+
+# Optimizer & Training
+lr: 0.0024
+weight_decay: 0.05
+warmup_epochs: 0
+num_epochs: 150
+grad_clip: 1.0
+save_every: 25
+max_batches_per_epoch: 1
+amp: true
+amp_dtype: "float16"
+compile: false
+compile_mode: "default"

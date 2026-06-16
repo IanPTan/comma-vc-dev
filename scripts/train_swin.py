@@ -172,9 +172,12 @@ def main():
     print(f"Device: {device} | Experiment: {exp_dir}")
 
     # 4. Data
+    split_path = os.path.join(exp_dir, "dataset_split.json")
     train_loader = DaliDataLoader(
         args.data_path,
+        split_path=split_path,
         mode="train",
+        val_split=args.val_split,
         clip_frames=args.clip_frames,
         frame_size=args.frame_size,
         batch_size=args.batch_size,
@@ -190,6 +193,7 @@ def main():
     val_path = args.val_path if args.val_path else args.data_path
     val_loader = DaliDataLoader(
         val_path,
+        split_path=split_path,
         mode="val",
         val_split=args.val_split,
         clip_frames=args.clip_frames,

@@ -128,11 +128,16 @@ def main():
     device_id = device.index if device.index is not None else 0
     print(f"Testing on device: {device}")
 
+    split_path = os.path.join(exp_dir, "dataset_split.json")
+    val_split = getattr(args, "val_split", 0.1)
+
     # Initialize Train Loader
     try:
         train_loader = DaliDataLoader(
             args.data_path,
+            split_path=split_path,
             mode="train",
+            val_split=val_split,
             clip_frames=args.clip_frames,
             frame_size=args.frame_size,
             batch_size=args.batch_size,
@@ -152,7 +157,9 @@ def main():
         val_path = args.val_path if args.val_path else args.data_path
         val_loader = DaliDataLoader(
             val_path,
+            split_path=split_path,
             mode="val",
+            val_split=val_split,
             clip_frames=args.clip_frames,
             frame_size=args.frame_size,
             batch_size=args.batch_size,
