@@ -183,10 +183,6 @@ def main():
             print(f"Applying command-line overrides: {overrides_to_apply}")
             config.update(overrides_to_apply)
             
-    # Save the updated configuration back to config.yaml
-    with open(config_path, 'w') as f:
-        yaml.dump(config, f, default_flow_style=False)
-        
     # Check if a checkpoint exists to resume
     resume_path = os.path.join(data_dir, "checkpoint_latest.pt")
     resume_epoch = 0
