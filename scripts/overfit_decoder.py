@@ -241,6 +241,9 @@ def main():
     
     optimizer = torch.optim.AdamW(param_groups, lr=args.lr)
     
+    # Cosine learning rate scheduler
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=1e-6)
+    
     # Mixed precision configuration
     amp_enabled = config.get("amp", True)
     amp_dtype = torch.bfloat16 if config.get("amp_dtype") == "bfloat16" else torch.float16
@@ -251,6 +254,7 @@ def main():
     all_patches_mask = torch.ones((1, num_mask_units), dtype=torch.bool, device=device)
     target_labels = model.get_pixel_label_2d(image, all_patches_mask, norm=True)
     
+    pad_width = len(str(args.epochs))
     print("Starting overfitting training...")
     loss_history = []
     
@@ -274,16 +278,18 @@ def main():
             
         scaler.step(optimizer)
         scaler.update()
+        scheduler.step()
         
         loss_val = loss.item()
         loss_history.append(loss_val)
         
         if (epoch + 1) % 10 == 0 or epoch == 0:
-            print(f"Epoch {epoch+1:03d}/{args.epochs:03d} | Loss: {loss_val:.6f}")
+            current_lr = optimizer.param_groups[0]['lr']
+            print(f"Epoch {epoch+1:0{pad_width}d}/{args.epochs:0{pad_width}d} | Loss: {loss_val:.6f} | LR: {current_lr:.6f}")
             
         # Periodic visualization
         if (epoch + 1) % args.save_every == 0 or epoch == 0:
-            recon_path = output_dir / f"epoch_{epoch+1:03d}_recon.png"
+            recon_path = output_dir / f"epoch_{epoch+1:0{pad_width}d}_recon.png"
             reconstruct_and_save(model, latent_param, image, epoch, recon_path)
 
     # 4. Save final outputs
