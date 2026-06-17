@@ -102,14 +102,18 @@ def reconstruct_and_save(model, original_image, epoch, save_path):
         img_orig_vis = (original_image * std_norm + mean_norm).clamp(0, 1)
         img_recon_vis = (img_recon * std_norm + mean_norm).clamp(0, 1)
         
-        # Stack comparison: [Original, Reconstructed] side-by-side
-        comparison = torch.cat([img_orig_vis[0], img_recon_vis[0]], dim=2)
+        # Stack comparison: [Original, Reconstructed] side-by-side for all frames, then concatenate vertically
+        row_list = []
+        for i in range(B):
+            row = torch.cat([img_orig_vis[i], img_recon_vis[i]], dim=2)
+            row_list.append(row)
+        comparison = torch.cat(row_list, dim=1)
         
         # Convert to PIL and save
         comparison_cpu = comparison.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to("cpu", torch.uint8).numpy()
         im = Image.fromarray(comparison_cpu)
         im.save(save_path)
-        print(f"Saved reconstruction comparison to {save_path}")
+        print(f"Saved reconstruction comparison (B={B}) to {save_path}")
 
 
 def main():
@@ -159,8 +163,8 @@ def main():
     
     # 1. Load image
     if args.smoke_test:
-        print("Running in SMOKE-TEST mode: Using a random tensor as image.")
-        image = torch.randn(1, 3, img_h, img_w, device=device)
+        print("Running in SMOKE-TEST mode: Using a random tensor as image batch (B=4).")
+        image = torch.randn(4, 3, img_h, img_w, device=device)
     else:
         # Load dataset to get the first frame
         transform = T.Compose([
@@ -180,12 +184,19 @@ def main():
                 transform=transform
             )
             img_h, img_w = dataset.height, dataset.width
-            image = dataset[0].unsqueeze(0).to(device)
-            print(f"Successfully loaded first image from dataset. Resolution: {img_w}x{img_h}")
+            
+            frame_indices = [0, 10000, 20000, 30000]
+            frame_indices = [idx for idx in frame_indices if idx < len(dataset)]
+            if len(frame_indices) < 4:
+                print(f"Warning: Dataset length is {len(dataset)}, only loaded indices {frame_indices}")
+                
+            frames = [dataset[idx] for idx in frame_indices]
+            image = torch.stack(frames).to(device)
+            print(f"Successfully loaded {len(frame_indices)} frames from dataset at indices {frame_indices}. Resolution: {img_w}x{img_h}")
         except Exception as e:
             print(f"Error initializing dataset or loading image: {e}")
-            print("Falling back to a randomly generated image tensor for training.")
-            image = torch.randn(1, 3, img_h, img_w, device=device)
+            print("Falling back to a randomly generated image batch (B=4) for training.")
+            image = torch.randn(4, 3, img_h, img_w, device=device)
 
     # 2. Initialize Model
     model = MaskedAutoencoderHiera(
@@ -235,8 +246,9 @@ def main():
     scaler = torch.amp.GradScaler("cuda", enabled=amp_enabled and device.type == "cuda" and amp_dtype == torch.float16)
 
     # Setup shape metrics for training
+    B = image.shape[0]
     num_mask_units = math.prod(model.tokens_spatial_shape_final)
-    all_patches_mask = torch.ones((1, num_mask_units), dtype=torch.bool, device=device)
+    all_patches_mask = torch.ones((B, num_mask_units), dtype=torch.bool, device=device)
     target_labels = model.get_pixel_label_2d(image, all_patches_mask, norm=True)
     pad_width = len(str(args.epochs))
     
