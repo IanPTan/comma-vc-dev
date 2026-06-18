@@ -1,0 +1,41 @@
+# Config for Hiera MAE Frame-level training - Overfitting Test (frame_model_4)
+seed: 42
+
+# Data
+data_path: "data/comma2k19_frames"
+val_split: 0.1
+batch_size: 4
+workers: 4
+mask_ratio: 0.6
+shuffle: false           # Ensure the same first 4 frames are loaded every epoch
+persistent_workers: true # Keep dataloader workers alive between epochs
+
+# Model Architecture (Hiera-Tiny default adjusted for 52x72 token dimensions)
+embed_dim: 96
+num_heads: 1
+stages: [1, 2, 7, 2]
+q_pool: 2
+q_stride: [2, 2]
+mask_unit_size: [4, 4]
+patch_stride: [16, 16]
+mlp_ratio: 4.0
+
+# Decoder Configuration
+decoder_embed_dim: 256
+decoder_depth: 4
+decoder_num_heads: 8
+
+# Optimizer & Training
+lr: 0.0064               # Base learning rate. Scaled: 0.0064 * (4 / 256) = 0.0001
+weight_decay: 0.0        # Disable weight decay to permit perfect overfitting
+warmup_epochs: 0         # Start cosine decay schedule immediately
+num_epochs: 4000         # Allow deep overfitting convergence
+grad_clip: 1.0
+save_every: 100          # Save checkpoints every 100 epochs
+max_batches_per_epoch: 1 # Constrain training to a single batch of 4 frames per epoch
+max_val_batches: 0       # Skip validation to accelerate training
+freeze_mask: false       # Keep masking dynamic to match overfit_mask behavior
+amp: true
+amp_dtype: "float16"
+compile: false
+compile_mode: "default"
