@@ -26,6 +26,10 @@ def main():
     parser.add_argument("--checkpoint", type=str, default="checkpoint_latest.pt", 
                         help="Checkpoint filename to load (default: checkpoint_latest.pt)")
     parser.add_argument("--num-images", type=int, default=4, help="Number of images to reconstruct (max 4)")
+    parser.add_argument("--mode", type=str, default="val", choices=["train", "val"], 
+                        help="Dataset split to visualize from (default: val)")
+    parser.add_argument("--indices", type=int, nargs="+", default=None,
+                        help="Specific dataset frame indices to reconstruct")
     args = parser.parse_args()
 
     exp_dir = Path(args.exp_dir)
@@ -66,29 +70,40 @@ def main():
     val_dataset = FrameDataset(
         dataset_dir=config["data_path"],
         split_path=str(split_path),
-        mode="val",
+        mode=args.mode,
         val_split=config["val_split"],
         seed=config["seed"],
         transform=transform
     )
     
-    val_loader = torch.utils.data.DataLoader(
-        val_dataset,
-        batch_size=args.num_images,
-        shuffle=False,
-        num_workers=2,
-        pin_memory=True
-    )
-
-    # Load first batch
-    vis_batch = None
-    for batch in val_loader:
-        vis_batch = batch
-        break
-
-    if vis_batch is None:
-        print("Error: Could not retrieve a batch from validation dataset.")
-        sys.exit(1)
+    if args.indices:
+        print(f"Loading specific indices: {args.indices} from '{args.mode}' dataset split...")
+        frames = []
+        for idx in args.indices:
+            if idx < len(val_dataset):
+                frames.append(val_dataset[idx])
+            else:
+                print(f"Warning: Index {idx} is out of bounds for the '{args.mode}' dataset split (len={len(val_dataset)}).")
+        if not frames:
+            print("Error: No valid indices loaded.")
+            sys.exit(1)
+        vis_batch = torch.stack(frames)
+    else:
+        val_loader = torch.utils.data.DataLoader(
+            val_dataset,
+            batch_size=args.num_images,
+            shuffle=False,
+            num_workers=2,
+            pin_memory=True
+        )
+        # Load first batch
+        vis_batch = None
+        for batch in val_loader:
+            vis_batch = batch
+            break
+        if vis_batch is None:
+            print("Error: Could not retrieve a batch from validation dataset.")
+            sys.exit(1)
 
     # Setup Model
     img_w = val_dataset.width
@@ -123,7 +138,8 @@ def main():
     # Custom save logic to avoid standard epoch name collision
     model.eval()
     with torch.no_grad():
-        images = vis_batch[:args.num_images].to(device)
+        num_to_vis = len(vis_batch) if args.indices else min(args.num_images, len(vis_batch))
+        images = vis_batch[:num_to_vis].to(device)
         B, C, H, W = images.shape
         raw_m = getattr(model, "_orig_mod", model)
         P = raw_m.pred_stride
