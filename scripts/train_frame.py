@@ -103,6 +103,7 @@ def get_explicit_cli_args():
     p.add_argument("--compile-mode", type=str)
     p.add_argument("--freeze-mask", type=str2bool, nargs='?')
     p.add_argument("--shuffle", type=str2bool, nargs='?')
+    p.add_argument("--persistent-workers", type=str2bool, nargs='?')
     
     parsed, _ = p.parse_known_args()
     return vars(parsed)
@@ -235,13 +236,16 @@ def main():
     if config.get("freeze_mask", False):
         should_shuffle = False
 
+    use_persistent = config.get("persistent_workers", True) and config["workers"] > 0
+
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=config["batch_size"],
         shuffle=should_shuffle,
         num_workers=config["workers"],
         pin_memory=True,
-        drop_last=True
+        drop_last=True,
+        persistent_workers=use_persistent
     )
     val_loader = torch.utils.data.DataLoader(
         val_dataset,
@@ -249,7 +253,8 @@ def main():
         shuffle=False,
         num_workers=config["workers"],
         pin_memory=True,
-        drop_last=False
+        drop_last=False,
+        persistent_workers=use_persistent
     )
 
     # 7. Model Setup

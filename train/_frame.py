@@ -146,7 +146,7 @@ def train_frame(
     save_dir: str,
     vis_dir: str,
     val_loader=None,
-    save_every: int = 5,
+    save_every: int = 1,
     grad_clip: float = 1.0,
     max_batches_per_epoch: Optional[int] = None,
     resume_epoch: int = 0,
@@ -285,10 +285,6 @@ def train_frame(
             "best_val_loss": best_val_loss,
         }
         
-        # Save latest
-        latest_path = os.path.join(save_dir, "checkpoint_latest.pt")
-        torch.save(checkpoint, latest_path)
-        
         # Save best
         if val_loader is not None and avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
@@ -297,8 +293,11 @@ def train_frame(
             torch.save(checkpoint, best_path)
             print(f"  *** New best validation loss: {best_val_loss:.4f} (saved to {best_path})")
 
-        # Optional periodic checkpoint
-        if (epoch + 1) % save_every == 0:
+        # Save latest and periodic checkpoints based on save_every frequency
+        if (epoch + 1) % save_every == 0 or (epoch + 1) == num_epochs:
+            latest_path = os.path.join(save_dir, "checkpoint_latest.pt")
+            torch.save(checkpoint, latest_path)
+            
             ckpt_p = os.path.join(save_dir, f"checkpoint_epoch{epoch+1}.pt")
             torch.save(checkpoint, ckpt_p)
 
