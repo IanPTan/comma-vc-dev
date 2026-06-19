@@ -30,9 +30,9 @@ def main():
     epochs = np.arange(1, len(train_loss) + 1)
 
     plt.figure(figsize=(10, 6))
-    plt.plot(epochs, train_loss, label="Train Loss", marker='o', markersize=4)
+    plt.plot(epochs, train_loss, label="Train Loss")
     if not np.all(np.isnan(val_loss)):
-        plt.plot(epochs, val_loss, label="Val Loss", marker='s', markersize=4)
+        plt.plot(epochs, val_loss, label="Val Loss")
     
     plt.xlabel("Epoch")
     plt.ylabel("MSE Loss")
