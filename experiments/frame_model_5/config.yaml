@@ -5,7 +5,7 @@ seed: 42
 data_path: "data/comma2k19_frames"
 train_split: 0.0005          # Train on a single video (~1200 frames)
 val_split: 0.0               # Disables validation splits
-batch_size: 4
+batch_size: 16
 workers: 4
 mask_ratio: 0.6
 shuffle: true                # Shuffle the loaded frames for the training batch
