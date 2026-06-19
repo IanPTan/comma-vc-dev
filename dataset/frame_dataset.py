@@ -58,41 +58,16 @@ class FrameDataset(Dataset):
             print(f"Generating new video-level split at {self.split_path}...")
             # Shuffle video paths deterministically
             shuffled_vids = [v["rel_path"] for v in videos]
-            random.seed(self.seed)
-            random.shuffle(shuffled_vids)
+            rng = random.Random(self.seed)
+            rng.shuffle(shuffled_vids)
             
-            # Determine split proportions
-            eff_train_split = self.train_split if self.train_split is not None else (1.0 - self.val_split)
-            if eff_train_split + self.val_split > 1.0:
-                raise ValueError(
-                    f"The sum of train_split ({eff_train_split}) and val_split ({self.val_split}) "
-                    f"cannot exceed 1.0."
-                )
-                
-            # Determine split indices (ensuring at least 1 video if split > 0, and not exceeding total vids)
-            split_idx_train = int(len(shuffled_vids) * eff_train_split)
-            if eff_train_split > 0.0 and split_idx_train == 0 and len(shuffled_vids) > 0:
-                split_idx_train = 1
-                
+            # Determine split indices (ensuring at least 1 video if val_split > 0, and not exceeding total vids)
             split_idx_val = int(len(shuffled_vids) * self.val_split)
             if self.val_split > 0.0 and split_idx_val == 0 and len(shuffled_vids) > 0:
                 split_idx_val = 1
                 
-            if split_idx_train + split_idx_val > len(shuffled_vids):
-                if len(shuffled_vids) >= 2:
-                    if split_idx_train > 0 and split_idx_val > 0:
-                        split_idx_train = 1
-                        split_idx_val = 1
-                else:
-                    if split_idx_train > 0:
-                        split_idx_train = 1
-                        split_idx_val = 0
-                    else:
-                        split_idx_train = 0
-                        split_idx_val = 1
-            
-            train_vids = shuffled_vids[:split_idx_train]
-            val_vids = shuffled_vids[split_idx_train : split_idx_train + split_idx_val]
+            val_vids = shuffled_vids[:split_idx_val]
+            train_vids = shuffled_vids[split_idx_val:]
             
             # Save split to file
             with open(self.split_path, 'w') as f:
@@ -108,6 +83,17 @@ class FrameDataset(Dataset):
             start = v["start_idx"]
             num = v["num_frames"]
             self.frame_indices.extend(range(start, start + num))
+            
+        if mode == "train" and self.train_split is not None:
+            total_frames_in_dataset = sum(v["num_frames"] for v in videos)
+            target = int(total_frames_in_dataset * self.train_split)
+            if self.train_split > 0:
+                target = max(1, target)
+            target = min(target, len(self.frame_indices))
+            
+            rng = random.Random(self.seed)
+            self.frame_indices = rng.sample(self.frame_indices, target)
+            self.frame_indices.sort()
             
         print(f"Initialized FrameDataset ({mode}): {len(self.active_videos)} videos, {len(self.frame_indices)} total frames.")
         
