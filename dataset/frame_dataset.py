@@ -18,6 +18,7 @@ class FrameDataset(Dataset):
         dataset_dir: str,
         split_path: str = "dataset_split.json",
         mode: str = "train",
+        train_split: Optional[float] = None,
         val_split: float = 0.1,
         seed: int = 42,
         transform: Optional[T.Compose] = None,
@@ -25,6 +26,7 @@ class FrameDataset(Dataset):
         self.dataset_dir = pathlib.Path(dataset_dir)
         self.split_path = pathlib.Path(split_path)
         self.mode = mode
+        self.train_split = train_split
         self.val_split = val_split
         self.seed = seed
         
@@ -59,9 +61,38 @@ class FrameDataset(Dataset):
             random.seed(self.seed)
             random.shuffle(shuffled_vids)
             
-            split_idx = int(len(shuffled_vids) * (1.0 - self.val_split))
-            train_vids = shuffled_vids[:split_idx]
-            val_vids = shuffled_vids[split_idx:]
+            # Determine split proportions
+            eff_train_split = self.train_split if self.train_split is not None else (1.0 - self.val_split)
+            if eff_train_split + self.val_split > 1.0:
+                raise ValueError(
+                    f"The sum of train_split ({eff_train_split}) and val_split ({self.val_split}) "
+                    f"cannot exceed 1.0."
+                )
+                
+            # Determine split indices (ensuring at least 1 video if split > 0, and not exceeding total vids)
+            split_idx_train = int(len(shuffled_vids) * eff_train_split)
+            if eff_train_split > 0.0 and split_idx_train == 0 and len(shuffled_vids) > 0:
+                split_idx_train = 1
+                
+            split_idx_val = int(len(shuffled_vids) * self.val_split)
+            if self.val_split > 0.0 and split_idx_val == 0 and len(shuffled_vids) > 0:
+                split_idx_val = 1
+                
+            if split_idx_train + split_idx_val > len(shuffled_vids):
+                if len(shuffled_vids) >= 2:
+                    if split_idx_train > 0 and split_idx_val > 0:
+                        split_idx_train = 1
+                        split_idx_val = 1
+                else:
+                    if split_idx_train > 0:
+                        split_idx_train = 1
+                        split_idx_val = 0
+                    else:
+                        split_idx_train = 0
+                        split_idx_val = 1
+            
+            train_vids = shuffled_vids[:split_idx_train]
+            val_vids = shuffled_vids[split_idx_train : split_idx_train + split_idx_val]
             
             # Save split to file
             with open(self.split_path, 'w') as f:

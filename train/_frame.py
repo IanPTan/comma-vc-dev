@@ -148,12 +148,10 @@ def train_frame(
     val_loader=None,
     save_every: int = 1,
     grad_clip: float = 1.0,
-    max_batches_per_epoch: Optional[int] = None,
     resume_epoch: int = 0,
     mask_ratio: float = 0.6,
     amp: bool = True,
     amp_dtype: str = "float16",
-    max_val_batches: Optional[int] = None,
     freeze_mask: bool = False,
 ):
     """
@@ -178,10 +176,10 @@ def train_frame(
             valid_val = val_losses[~np.isnan(val_losses)]
             if len(valid_val) > 0:
                 best_val_loss = np.min(valid_val)
-
+ 
     # Determine mixed precision dtype
     dtype = torch.bfloat16 if amp_dtype == "bfloat16" else torch.float16
-
+ 
     # Initialize GradScaler for FP16 Mixed Precision (disabled for BF16 since scaling is not required)
     scaler = torch.amp.GradScaler("cuda", enabled=amp and device.type == "cuda" and dtype == torch.float16)
     
@@ -195,24 +193,20 @@ def train_frame(
                 print("Restored GradScaler state.")
         except Exception as e:
             print(f"Warning: could not restore GradScaler state: {e}")
-
+ 
     # (Visualizations removed from training loop)
-
+ 
     fixed_mask = None
     for epoch in range(resume_epoch, num_epochs):
         model.train()
         epoch_loss = 0.0
         n_batches = 0
-
+ 
         pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}")
         for batch in pbar:
-            if max_batches_per_epoch is not None and n_batches >= max_batches_per_epoch:
-                pbar.close()
-                break
-            
             # Batch size is [B, C, H, W]
             images = batch.to(device)
-
+ 
             optimizer.zero_grad(set_to_none=True)
             
             # MAE forward pass in mixed precision
@@ -239,26 +233,23 @@ def train_frame(
             
             epoch_loss += loss.item()
             n_batches += 1
-
+ 
             pbar.set_postfix({
                 "loss": f"{loss.item():.4f}",
                 "lr": f"{optimizer.param_groups[0]['lr']:.6f}",
             })
-
+ 
         avg_train_loss = epoch_loss / max(n_batches, 1)
         
         # Validation
         avg_val_loss = np.nan
-        if val_loader is not None and (max_val_batches is None or max_val_batches > 0):
+        if val_loader is not None:
             model.eval()
             val_loss_sum = 0.0
             val_batches = 0
             with torch.no_grad():
                 val_pbar = tqdm(val_loader, desc="Validation", leave=False)
                 for batch in val_pbar:
-                    if max_val_batches is not None and val_batches >= max_val_batches:
-                        val_pbar.close()
-                        break
                     images = batch.to(device)
                     with torch.amp.autocast(device_type="cuda", enabled=amp and device.type == "cuda", dtype=dtype):
                         loss, _, _, _ = model(images, mask_ratio=mask_ratio)

@@ -1,3 +1,6 @@
+# WARNING: This is a legacy configuration from a prior model trial.
+# The parameters 'max_batches_per_epoch' and 'max_val_batches' are deprecated/removed.
+# To rerun this experiment, remove these parameters and delete 'dataset_split.json' to rebuild the data splits.
 # Config for Hiera MAE Frame-level training - Overfitting Test (frame_model_4)
 seed: 42
 

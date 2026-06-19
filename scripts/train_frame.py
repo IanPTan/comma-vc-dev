@@ -89,8 +89,7 @@ def get_explicit_cli_args():
     p.add_argument("--num-epochs", type=int)
     p.add_argument("--grad-clip", type=float)
     p.add_argument("--save-every", type=int)
-    p.add_argument("--max-batches-per-epoch", type=int)
-    p.add_argument("--max-val-batches", type=int)
+    p.add_argument("--train-split", type=float)
     
     def str2bool(v):
         if isinstance(v, bool): return v
@@ -214,6 +213,7 @@ def main():
         dataset_dir=config["data_path"],
         split_path=str(split_path),
         mode="train",
+        train_split=config.get("train_split", None),
         val_split=config["val_split"],
         seed=config["seed"],
         transform=transform
@@ -222,6 +222,7 @@ def main():
         dataset_dir=config["data_path"],
         split_path=str(split_path),
         mode="val",
+        train_split=config.get("train_split", None),
         val_split=config["val_split"],
         seed=config["seed"],
         transform=transform
@@ -286,8 +287,6 @@ def main():
 
     # Cosine learning rate schedule with step-level linear warmup
     steps_per_epoch = len(train_loader)
-    if config.get("max_batches_per_epoch") is not None:
-        steps_per_epoch = min(steps_per_epoch, config["max_batches_per_epoch"])
     total_steps = steps_per_epoch * config["num_epochs"]
     warmup_steps = steps_per_epoch * config["warmup_epochs"]
     scheduler = get_cosine_schedule_with_warmup(optimizer, warmup_steps, total_steps)
@@ -315,12 +314,10 @@ def main():
         val_loader=val_loader,
         save_every=config["save_every"],
         grad_clip=config["grad_clip"],
-        max_batches_per_epoch=config.get("max_batches_per_epoch", None),
         resume_epoch=resume_epoch,
         mask_ratio=config["mask_ratio"],
         amp=config.get("amp", False),
         amp_dtype=config.get("amp_dtype", "float16"),
-        max_val_batches=config.get("max_val_batches", None),
         freeze_mask=config.get("freeze_mask", False),
     )
     
