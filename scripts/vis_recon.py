@@ -71,6 +71,7 @@ def main():
         dataset_dir=config["data_path"],
         split_path=str(split_path),
         mode=args.mode,
+        train_split=config.get("train_split", None),
         val_split=config["val_split"],
         seed=config["seed"],
         transform=transform
