@@ -3,9 +3,9 @@ seed: 42
 
 # Data
 data_path: "data/comma2k19_frames"
-train_split: 0.000526         # Train on exactly 64 random frames (~0.053% of total dataset)
+train_split: 0.002104         # Train on exactly 256 random frames (~0.210% of total dataset)
 val_split: 0.0               # Disables validation splits
-batch_size: 32
+batch_size: 256
 workers: 4
 mask_ratio: 0.6
 shuffle: true                # Shuffle the loaded frames for the training batch
@@ -27,7 +27,7 @@ decoder_depth: 4
 decoder_num_heads: 8
 
 # Optimizer & Training
-lr: 0.0008                   # Base learning rate. Scaled: 0.0004 * (64 / 256) = 0.0001
+lr: 0.0001                   # Base learning rate. Scaled: 0.0001 * (256 / 256) = 0.0001
 weight_decay: 0.0            # Disable weight decay to permit perfect overfitting
 warmup_epochs: 0             # Start cosine decay schedule immediately
 num_epochs: 10000             # Deep overfitting convergence epochs (stretched schedule)
