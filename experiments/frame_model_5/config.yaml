@@ -3,9 +3,9 @@ seed: 42
 
 # Data
 data_path: "data/comma2k19_frames"
-train_split: 0.00004          # Train on exactly 4 random frames (0.004% of total dataset)
+train_split: 0.000132         # Train on exactly 16 random frames (~0.013% of total dataset)
 val_split: 0.0               # Disables validation splits
-batch_size: 4
+batch_size: 16
 workers: 4
 mask_ratio: 0.6
 shuffle: true                # Shuffle the loaded frames for the training batch
