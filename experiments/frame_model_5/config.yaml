@@ -27,7 +27,7 @@ decoder_depth: 4
 decoder_num_heads: 8
 
 # Optimizer & Training
-lr: 0.0008                   # Base learning rate. Scaled: 0.0008 * (32 / 256) = 0.0001
+lr: 0.0016                   # Base learning rate. Scaled: 0.0008 * (32 / 256) = 0.0001
 weight_decay: 0.0            # Disable weight decay to permit perfect overfitting
 warmup_epochs: 0             # Start cosine decay schedule immediately
 num_epochs: 1000             # Deep overfitting convergence epochs (stretched schedule)
