@@ -3,7 +3,7 @@ seed: 42
 
 # Data
 data_path: "data/comma2k19_frames"
-train_split: 0.002104         # Train on exactly 256 random frames (~0.210% of total dataset)
+train_split: 0.008416         # Train on exactly 256 random frames (~0.210% of total dataset)
 val_split: 0.0               # Disables validation splits
 batch_size: 32
 workers: 4
@@ -30,9 +30,9 @@ decoder_num_heads: 8
 lr: 0.0008                   # Base learning rate. Scaled: 0.0008 * (32 / 256) = 0.0001
 weight_decay: 0.0            # Disable weight decay to permit perfect overfitting
 warmup_epochs: 0             # Start cosine decay schedule immediately
-num_epochs: 10000             # Deep overfitting convergence epochs (stretched schedule)
+num_epochs: 1000             # Deep overfitting convergence epochs (stretched schedule)
 grad_clip: 1.0
-save_every: 1000             # Save checkpoints every 1000 epochs
+save_every: 100             # Save checkpoints every 1000 epochs
 freeze_mask: false           # Keep masking dynamic
 amp: true
 amp_dtype: "float16"
