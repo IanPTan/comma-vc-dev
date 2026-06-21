@@ -156,7 +156,7 @@ def main():
                 if k not in ["data_path", "val_path", "workers", "device", "exp_dir"]:
                     setattr(args, k, v)
         
-        checkpoint = torch.load(resume_path, map_location="cpu")
+        checkpoint = torch.load(resume_path, map_location="cpu", weights_only=False)
         resume_epoch = checkpoint["epoch"]
     else:
         # New experiment: Save the config
@@ -226,7 +226,7 @@ def main():
 
     # 6. Resume Weights
     if resume_epoch > 0:
-        checkpoint = torch.load(resume_path, map_location=device)
+        checkpoint = torch.load(resume_path, map_location=device, weights_only=False)
         sd = checkpoint["model_state_dict"]
         sd = {k.removeprefix("_orig_mod."): v for k, v in sd.items()}
         getattr(model, "_orig_mod", model).load_state_dict(sd)

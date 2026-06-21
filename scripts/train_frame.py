@@ -190,7 +190,7 @@ def main():
     resume_epoch = 0
     if os.path.exists(resume_path):
         print(f"Found existing checkpoint at {resume_path}. Resuming...")
-        checkpoint = torch.load(resume_path, map_location="cpu")
+        checkpoint = torch.load(resume_path, map_location="cpu", weights_only=False)
         resume_epoch = checkpoint["epoch"]
 
     # 5. Reproducibility Seed
@@ -293,7 +293,7 @@ def main():
 
     # 9. Resume from Checkpoint
     if resume_epoch > 0:
-        checkpoint = torch.load(resume_path, map_location=device)
+        checkpoint = torch.load(resume_path, map_location=device, weights_only=False)
         sd = checkpoint["model_state_dict"]
         sd = {k.removeprefix("_orig_mod."): v for k, v in sd.items()}
         getattr(model, "_orig_mod", model).load_state_dict(sd)

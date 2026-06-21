@@ -56,7 +56,7 @@ def main():
     print(f"Loading checkpoint from: {checkpoint_path}")
 
     # Load checkpoint
-    checkpoint = torch.load(checkpoint_path, map_location=device)
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     epoch = checkpoint.get("epoch", 0)
     print(f"Checkpoint was saved at epoch {epoch}")
 

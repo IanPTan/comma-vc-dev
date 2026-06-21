@@ -187,7 +187,7 @@ def train_frame(
     latest_path = os.path.join(save_dir, "checkpoint_latest.pt")
     if resume_epoch > 0 and os.path.exists(latest_path):
         try:
-            checkpoint = torch.load(latest_path, map_location="cpu")
+            checkpoint = torch.load(latest_path, map_location="cpu", weights_only=False)
             if "scaler_state_dict" in checkpoint:
                 scaler.load_state_dict(checkpoint["scaler_state_dict"])
                 print("Restored GradScaler state.")

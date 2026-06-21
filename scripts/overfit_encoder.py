@@ -221,7 +221,7 @@ def main():
             raise FileNotFoundError(f"Decoder checkpoint not found at {chk_path}. Please run overfit_decoder.py first.")
         
         print(f"Loading decoder weights and target latent from {chk_path}...")
-        checkpoint = torch.load(chk_path, map_location=device)
+        checkpoint = torch.load(chk_path, map_location=device, weights_only=False)
         model.load_state_dict(checkpoint["model_state_dict"], strict=False)
         target_latent = checkpoint["latent_param"].to(device)
 
