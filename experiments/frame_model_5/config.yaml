@@ -30,7 +30,7 @@ decoder_num_heads: 8
 lr: 0.0016                   # Base learning rate. Scaled: 0.0008 * (32 / 256) = 0.0001
 weight_decay: 0.0            # Disable weight decay to permit perfect overfitting
 warmup_epochs: 0             # Start cosine decay schedule immediately
-num_epochs: 1000             # Deep overfitting convergence epochs (stretched schedule)
+num_epochs: 4000             # Deep overfitting convergence epochs (stretched schedule)
 grad_clip: 1.0
 save_every: 100             # Save checkpoints every 1000 epochs
 freeze_mask: false           # Keep masking dynamic
