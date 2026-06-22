@@ -1,20 +1,21 @@
-# Config for Hiera MAE Frame-level training - Overfitting Test with Hiera-Small (frame_model_6)
+# Config for Hiera MAE Frame-level training - Full Dataset Training (frame_model_6)
 seed: 42
 
 # Data
 data_path: "data/comma2k19_frames"
-train_split: 0.00004          # Train on exactly 4 random frames (0.004% of total dataset)
-val_split: 0.0               # Disables validation splits
-batch_size: 4
-workers: 4
+train_split: null             # Train on all available training videos/frames
+val_split: 0.1                # 10% validation split (video-level)
+batch_size: 32                # Safe for G4/T4 (16GB VRAM); scale up if running on RTX 6000 (48GB)
+workers: 4                    # Balanced for Colab CPUs
 mask_ratio: 0.6
-shuffle: true                # Shuffle the loaded frames for the training batch
-persistent_workers: true     # Keep dataloader workers alive between epochs
+shuffle: true
+persistent_workers: true
+prefetch_factor: 1            # Prevents RAM crashes on Colab's standard VM
 
-# Model Architecture (Hiera-Small default adjusted for 52x72 token dimensions)
+# Model Architecture (Hiera-Tiny default, matching trial 5)
 embed_dim: 96
 num_heads: 1
-stages: [1, 2, 11, 2]
+stages: [1, 2, 7, 2]
 q_pool: 2
 q_stride: [2, 2]
 mask_unit_size: [4, 4]
@@ -27,14 +28,14 @@ decoder_depth: 4
 decoder_num_heads: 8
 
 # Optimizer & Training
-lr: 0.0064                   # Base learning rate. Scaled: 0.0064 * (4 / 256) = 0.0001
-weight_decay: 0.0            # Disable weight decay to permit perfect overfitting
-warmup_epochs: 0             # Start cosine decay schedule immediately
-num_epochs: 1000             # Deep overfitting convergence epochs
+lr: 0.0008                    # Base learning rate. Scaled: 0.0008 * (batch_size / 256)
+weight_decay: 0.05            # Regularization for full dataset training
+warmup_epochs: 5              # 5 epochs warmup
+num_epochs: 100               # Full training duration
 grad_clip: 1.0
-save_every: 100              # Save checkpoints every 100 epochs
-freeze_mask: false           # Keep masking dynamic
+save_every: 5                 # Checkpoint every 5 epochs
+freeze_mask: false
 amp: true
-amp_dtype: "float16"
+amp_dtype: "float16"          # Safe for both T4 and RTX 6000
 compile: false
 compile_mode: "default"
