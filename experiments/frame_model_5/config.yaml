@@ -5,8 +5,8 @@ seed: 42
 data_path: "data/comma2k19_frames"
 train_split: 0.008416         # Train on exactly 256 random frames (~0.210% of total dataset)
 val_split: 0.0               # Disables validation splits
-batch_size: 32
-workers: 4
+batch_size: 64
+workers: 8
 mask_ratio: 0.6
 shuffle: true                # Shuffle the loaded frames for the training batch
 persistent_workers: true     # Keep dataloader workers alive between epochs
@@ -35,6 +35,6 @@ grad_clip: 1.0
 save_every: 100             # Save checkpoints every 1000 epochs
 freeze_mask: false           # Keep masking dynamic
 amp: true
-amp_dtype: "float16"
+amp_dtype: "bfloat16"
 compile: false
 compile_mode: "default"
