@@ -6,10 +6,11 @@ data_path: "data/comma2k19_frames"
 train_split: 0.008416         # Train on exactly 256 random frames (~0.210% of total dataset)
 val_split: 0.0               # Disables validation splits
 batch_size: 64
-workers: 8
+workers: 4
 mask_ratio: 0.6
 shuffle: true                # Shuffle the loaded frames for the training batch
 persistent_workers: true     # Keep dataloader workers alive between epochs
+prefetch_factor: 1
 
 # Model Architecture (Hiera-Tiny default adjusted for 52x72 token dimensions)
 embed_dim: 96

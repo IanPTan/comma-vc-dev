@@ -12,6 +12,7 @@ workers: 4
 mask_ratio: 0.6
 shuffle: true
 persistent_workers: true
+prefetch_factor: 2
 
 # Model Architecture (Hiera-Tiny default adjusted for 52x72 token dimensions)
 embed_dim: 96

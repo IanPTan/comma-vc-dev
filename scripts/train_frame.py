@@ -90,6 +90,7 @@ def get_explicit_cli_args():
     p.add_argument("--grad-clip", type=float)
     p.add_argument("--save-every", type=int)
     p.add_argument("--train-split", type=float)
+    p.add_argument("--prefetch-factor", type=int)
     
     def str2bool(v):
         if isinstance(v, bool): return v
@@ -238,6 +239,7 @@ def main():
         should_shuffle = False
 
     use_persistent = config.get("persistent_workers", True) and config["workers"] > 0
+    prefetch_factor = config.get("prefetch_factor", 2) if config["workers"] > 0 else None
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
@@ -246,7 +248,8 @@ def main():
         num_workers=config["workers"],
         pin_memory=True,
         drop_last=True,
-        persistent_workers=use_persistent
+        persistent_workers=use_persistent,
+        prefetch_factor=prefetch_factor
     )
     val_loader = torch.utils.data.DataLoader(
         val_dataset,
@@ -255,7 +258,8 @@ def main():
         num_workers=config["workers"],
         pin_memory=True,
         drop_last=False,
-        persistent_workers=use_persistent
+        persistent_workers=use_persistent,
+        prefetch_factor=prefetch_factor
     )
 
     # 7. Model Setup
