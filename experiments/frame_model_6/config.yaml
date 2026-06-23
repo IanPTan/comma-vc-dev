@@ -5,8 +5,8 @@ seed: 42
 data_path: "data/comma2k19_frames"
 train_split: null             # Train on all available training videos/frames
 val_split: 0.1                # 10% validation split (video-level)
-batch_size: 32                # Safe for G4/T4 (16GB VRAM); scale up if running on RTX 6000 (48GB)
-workers: 4                    # Balanced for Colab CPUs
+batch_size: 40                # Safe for G4/T4 (16GB VRAM); scale up if running on RTX 6000 (48GB)
+workers: 12                    # Balanced for Colab CPUs
 mask_ratio: 0.6
 shuffle: true
 persistent_workers: true
