@@ -1,21 +1,9 @@
-# Default hyperparameters for training autoencoder
+# Experiment configuration overrides
 batch_size: 8
 epochs: 10
-dataset: "data/frames.h5"
 learning_rate: 0.001
-num_workers: 0
-seed: 42
-save_frequency: 10
-val_split: 0.0
-best_set: "train"
-qat: true
-
-# Scheduler parameters
-scheduler_patience: 0
-scheduler_factor: 0.5
-scheduler_min_lr: 0.000001
-
-# Model architecture hyperparameters
 base_channels: 8
 num_layers: 4
 bottleneck_channels: 64
+qat: true
+qat_start_epoch: 1

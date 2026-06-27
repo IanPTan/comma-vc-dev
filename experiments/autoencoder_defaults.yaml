@@ -9,6 +9,7 @@ save_frequency: 10
 val_split: 0.0
 best_set: "train"
 qat: true
+qat_start_epoch: 1
 
 # Scheduler parameters
 scheduler_patience: 5

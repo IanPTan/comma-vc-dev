@@ -1,0 +1,21 @@
+# Experiment configuration overrides - Improved version of autoencoder_2
+batch_size: 8
+epochs: 1000
+learning_rate: 0.001
+num_workers: 0
+seed: 42
+save_frequency: 50
+val_split: 0.0
+best_set: "train"
+qat: true
+qat_start_epoch: 800
+
+# Scheduler parameters
+scheduler_patience: 15
+scheduler_factor: 0.5
+scheduler_min_lr: 0.000001
+
+# Model architecture hyperparameters (matching autoencoder_2)
+base_channels: 8
+num_layers: 4
+bottleneck_channels: 64

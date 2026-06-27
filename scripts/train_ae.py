@@ -236,11 +236,23 @@ def main():
     # Training loop
     epochs = config['epochs']
     save_frequency = config.get('save_frequency', 10)
+    qat_start_epoch = config.get('qat_start_epoch', 1)
 
     for epoch in range(start_epoch, epochs + 1):
         # Print current learning rate at the start of the epoch
         current_lr = optimizer.param_groups[0]['lr']
         print(f"Epoch {epoch}: learning rate = {current_lr:.6f}")
+        
+        # Manage QAT fake quantization based on qat_start_epoch
+        if qat_enabled:
+            import torch.ao.quantization as quantization
+            if epoch < qat_start_epoch:
+                quantization.disable_fake_quant(model.decoder)
+                quantization.enable_observer(model.decoder)
+                print(f"Epoch {epoch}: QAT fake quantization is DISABLED (pure FP32 with active observers).")
+            else:
+                quantization.enable_fake_quant(model.decoder)
+                print(f"Epoch {epoch}: QAT fake quantization is ENABLED.")
         
         # 1. Train epoch
         model.train()
