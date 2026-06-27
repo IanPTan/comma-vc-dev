@@ -69,9 +69,15 @@ class Decoder(nn.Module):
     """
     Decoder model with configurable number of layers. Upsamples using PixelShuffle.
     Reconstructs the image from the bottleneck embedding without skip connections.
+    Supports QAT stub insertion for int8 quantization.
     """
-    def __init__(self, out_channels=3, base_channels=32, num_layers=4, bottleneck_channels=256):
+    def __init__(self, out_channels=3, base_channels=32, num_layers=4, bottleneck_channels=256, qat=False):
         super().__init__()
+        self.qat = qat
+        if self.qat:
+            import torch.ao.quantization as quantization
+            self.quant = quantization.QuantStub()
+            self.dequant = quantization.DeQuantStub()
         
         enc_out_channels = base_channels * (2 ** (num_layers - 1))
         
@@ -91,17 +97,23 @@ class Decoder(nn.Module):
             curr_channels = layer_out_channels
 
     def forward(self, bottleneck):
+        if self.qat:
+            bottleneck = self.quant(bottleneck)
+            
         x = self.proj(bottleneck)
         for layer in self.layers:
             x = layer(x)
+            
+        if self.qat:
+            x = self.dequant(x)
         return x
 
 class Autoencoder(nn.Module):
     """Complete Autoencoder wrapping Encoder and Decoder modules."""
-    def __init__(self, in_channels=3, out_channels=3, base_channels=32, num_layers=4, bottleneck_channels=256):
+    def __init__(self, in_channels=3, out_channels=3, base_channels=32, num_layers=4, bottleneck_channels=256, qat=False):
         super().__init__()
         self.encoder = Encoder(in_channels, base_channels, num_layers, bottleneck_channels)
-        self.decoder = Decoder(out_channels, base_channels, num_layers, bottleneck_channels)
+        self.decoder = Decoder(out_channels, base_channels, num_layers, bottleneck_channels, qat)
 
     def forward(self, x):
         bottleneck = self.encoder(x)

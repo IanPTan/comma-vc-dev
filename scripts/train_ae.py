@@ -167,11 +167,20 @@ def main():
         val_loader = None
 
     # Initialize model, loss, and optimizer
+    # Initialize model, loss, and optimizer
+    qat_enabled = config.get('qat', True)
     model = Autoencoder(
         base_channels=config['base_channels'],
         num_layers=config['num_layers'],
-        bottleneck_channels=config['bottleneck_channels']
+        bottleneck_channels=config['bottleneck_channels'],
+        qat=qat_enabled
     ).to(device)
+
+    if qat_enabled:
+        import torch.ao.quantization as quantization
+        model.decoder.qconfig = quantization.get_default_qat_qconfig('fbgemm')
+        quantization.prepare_qat(model.decoder, inplace=True)
+        print("Prepared decoder for Quantization Aware Training (QAT).")
 
     total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Model parameters: {total_params:,}")
