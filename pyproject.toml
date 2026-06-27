@@ -8,4 +8,5 @@ dependencies = [
     "h5py>=3.16.0",
     "matplotlib>=3.10.9",
     "numpy>=2.4.6",
+    "torch>=2.12.1",
 ]
