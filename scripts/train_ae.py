@@ -196,9 +196,11 @@ def main():
     # Initialize model
     qat_enabled = config.get('qat', True)
     qat_start_epoch = config.get('qat_start_epoch', 1)
+    qat_calibration_epochs = config.get('qat_calibration_epochs', 20)
+    qat_prep_epoch = max(1, qat_start_epoch - qat_calibration_epochs)
     
     # Check if we should initialize with QAT already prepared
-    use_qat_at_init = qat_enabled and start_epoch >= qat_start_epoch
+    use_qat_at_init = qat_enabled and start_epoch >= qat_prep_epoch
     
     model = Autoencoder(
         base_channels=config['base_channels'],
@@ -212,8 +214,9 @@ def main():
         import torch.ao.quantization as quantization
         model.decoder.qconfig = quantization.get_default_qat_qconfig('fbgemm')
         quantization.prepare_qat(model.decoder, inplace=True)
+        model.decoder.to(device)
         model_is_qat = True
-        print("Initialized model with QAT prepared (resuming QAT phase).")
+        print(f"Initialized model with QAT prepared (resuming QAT/Calibration phase at epoch {start_epoch}).")
 
     total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Model parameters: {total_params:,}")
@@ -252,13 +255,14 @@ def main():
         current_lr = optimizer.param_groups[0]['lr']
         print(f"Epoch {epoch}: learning rate = {current_lr:.6f}")
         
-        # Transition decoder dynamically to QAT at the start epoch
-        if qat_enabled and epoch >= qat_start_epoch and not model_is_qat:
+        # Transition decoder dynamically to QAT at the preparation epoch
+        if qat_enabled and epoch >= qat_prep_epoch and not model_is_qat:
             import torch.ao.quantization as quantization
             model.decoder.qat = True
             model.decoder.qconfig = quantization.get_default_qat_qconfig('fbgemm')
             quantization.prepare_qat(model.decoder, inplace=True)
             model_is_qat = True
+            model.decoder.to(device)
             
             # Re-initialize optimizer and scheduler with new QAT model parameters, keeping current learning rate
             optimizer = optim.Adam(model.parameters(), lr=current_lr)
@@ -271,10 +275,18 @@ def main():
             )
             print(f"Epoch {epoch}: Transitioned decoder to QAT and re-initialized optimizer/scheduler.")
             
+        # Manage fake quantization/calibration mode dynamically at each epoch
         if qat_enabled and model_is_qat:
-            print(f"Epoch {epoch}: QAT fake quantization is ACTIVE.")
+            import torch.ao.quantization as quantization
+            if epoch < qat_start_epoch:
+                quantization.disable_fake_quant(model.decoder)
+                quantization.enable_observer(model.decoder)
+                print(f"Epoch {epoch}: QAT fake quantization is DISABLED (calibration mode active).")
+            else:
+                quantization.enable_fake_quant(model.decoder)
+                print(f"Epoch {epoch}: QAT fake quantization is ENABLED (full QAT active).")
         elif qat_enabled:
-            print(f"Epoch {epoch}: Running in pure FP32 calibration/pretraining phase.")
+            print(f"Epoch {epoch}: Running in pure FP32 pretraining phase.")
         
         # 1. Train epoch
         model.train()

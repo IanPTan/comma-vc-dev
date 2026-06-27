@@ -10,6 +10,7 @@ val_split: 0.0
 best_set: "train"
 qat: true
 qat_start_epoch: 1
+qat_calibration_epochs: 20
 
 # Scheduler parameters
 scheduler_patience: 5

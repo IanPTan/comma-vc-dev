@@ -109,6 +109,7 @@ def main():
         import torch.ao.quantization as quantization
         model.decoder.qconfig = quantization.get_default_qat_qconfig('fbgemm')
         quantization.prepare_qat(model.decoder, inplace=True)
+        model.decoder.to(device)
 
     model.encoder.load_state_dict(checkpoint['encoder_state_dict'])
     model.decoder.load_state_dict(checkpoint['decoder_state_dict'])
