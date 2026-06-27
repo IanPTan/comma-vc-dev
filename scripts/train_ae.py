@@ -110,16 +110,21 @@ def main():
         return
 
     dataset = FrameDataset(dataset_path)
-    val_split = config.get('val_split', 0.1)
+    val_split = config.get('val_split', 0.0)
     
     val_size = int(len(dataset) * val_split)
     train_size = len(dataset) - val_size
     
-    # Random split with seed-controlled generator
-    generator = torch.Generator().manual_seed(config['seed'])
-    train_dataset, val_dataset = torch.utils.data.random_split(
-        dataset, [train_size, val_size], generator=generator
-    )
+    if val_size > 0:
+        # Random split with seed-controlled generator
+        generator = torch.Generator().manual_seed(config['seed'])
+        train_dataset, val_dataset = torch.utils.data.random_split(
+            dataset, [train_size, val_size], generator=generator
+        )
+    else:
+        train_dataset = dataset
+        val_dataset = []
+        
     print(f"Dataset loaded. Train size: {len(train_dataset)}, Val size: {len(val_dataset)}")
 
     train_loader = DataLoader(
@@ -129,13 +134,16 @@ def main():
         num_workers=config['num_workers'],
         pin_memory=(device.type == 'cuda')
     )
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=config['batch_size'],
-        shuffle=False,
-        num_workers=config['num_workers'],
-        pin_memory=(device.type == 'cuda')
-    )
+    if val_size > 0:
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=config['batch_size'],
+            shuffle=False,
+            num_workers=config['num_workers'],
+            pin_memory=(device.type == 'cuda')
+        )
+    else:
+        val_loader = None
 
     # Initialize model, loss, and optimizer
     model = Autoencoder(
@@ -160,7 +168,8 @@ def main():
 
     # Resumption logic
     start_epoch = 1
-    best_val_loss = float('inf')
+    best_loss = float('inf')
+    best_set = config.get('best_set', 'train')
 
     if os.path.exists(latest_path):
         print(f"Found existing checkpoint at {latest_path}. Resuming training...")
@@ -169,12 +178,15 @@ def main():
         model.decoder.load_state_dict(checkpoint['decoder_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         start_epoch = checkpoint['epoch'] + 1
-        best_val_loss = checkpoint.get('best_val_loss', float('inf'))
-        print(f"Resumed from epoch {checkpoint['epoch']} with best val loss so far: {best_val_loss:.6f}")
+        best_loss = checkpoint.get('best_loss', float('inf'))
+        print(f"Resumed from epoch {checkpoint['epoch']} with best loss so far ({best_set}): {best_loss:.6f}")
     elif os.path.exists(best_path):
-        # Fallback to load best.pt just in case best_val_loss tracking is needed
+        # Fallback to load best.pt just in case best_loss tracking is needed
         checkpoint = torch.load(best_path, map_location=device, weights_only=False)
-        best_val_loss = checkpoint.get('val_loss', float('inf'))
+        if best_set == 'train':
+            best_loss = checkpoint.get('train_loss', checkpoint.get('val_loss', float('inf')))
+        else:
+            best_loss = checkpoint.get('val_loss', float('inf'))
 
     # Training loop
     epochs = config['epochs']
@@ -199,17 +211,19 @@ def main():
         train_loss /= len(train_dataset)
 
         # 2. Val epoch
-        model.eval()
         val_loss = 0.0
-        with torch.no_grad():
-            for batch in val_loader:
-                batch = batch.to(device)
-                outputs = model(batch)
-                loss = criterion(outputs, batch)
-                val_loss += loss.item() * batch.size(0)
-        
-        val_loss /= len(val_dataset)
-        print(f"Epoch {epoch}: Train Loss = {train_loss:.6f}, Val Loss = {val_loss:.6f}")
+        if val_loader is not None:
+            model.eval()
+            with torch.no_grad():
+                for batch in val_loader:
+                    batch = batch.to(device)
+                    outputs = model(batch)
+                    loss = criterion(outputs, batch)
+                    val_loss += loss.item() * batch.size(0)
+            val_loss /= len(val_dataset)
+            print(f"Epoch {epoch}: Train Loss = {train_loss:.6f}, Val Loss = {val_loss:.6f}")
+        else:
+            print(f"Epoch {epoch}: Train Loss = {train_loss:.6f}")
 
         # 3. Save results in results.h5
         with h5py.File(results_path, 'a') as f:
@@ -227,16 +241,19 @@ def main():
             f['train_loss'][epoch - 1] = train_loss
             f['val_loss'][epoch - 1] = val_loss
 
-        # 4. Save best model if validation loss improved
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
+        # 4. Save best model if tracked loss improved
+        best_set = config.get('best_set', 'train')
+        current_metric = train_loss if best_set == 'train' else val_loss
+        if current_metric < best_loss:
+            best_loss = current_metric
             torch.save({
                 'epoch': epoch,
                 'encoder_state_dict': model.encoder.state_dict(),
                 'decoder_state_dict': model.decoder.state_dict(),
+                'train_loss': train_loss,
                 'val_loss': val_loss
             }, best_path)
-            print(f"Saved new best model checkpoint to {best_path} (Val Loss: {val_loss:.6f})")
+            print(f"Saved new best model checkpoint to {best_path} (Best Set: {best_set}, Loss: {best_loss:.6f})")
 
         # 5. Save latest model based on save frequency or if it's the last epoch
         if epoch % save_frequency == 0 or epoch == epochs:
@@ -245,7 +262,7 @@ def main():
                 'encoder_state_dict': model.encoder.state_dict(),
                 'decoder_state_dict': model.decoder.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-                'best_val_loss': best_val_loss,
+                'best_loss': best_loss,
                 'train_loss': train_loss,
                 'val_loss': val_loss
             }, latest_path)
