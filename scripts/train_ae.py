@@ -31,14 +31,35 @@ def set_seed(seed):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
+def get_largest_experiment_dir(base_dir="experiments"):
+    os.makedirs(base_dir, exist_ok=True)
+    largest_num = -1
+    for name in os.listdir(base_dir):
+        if name.startswith("autoencoder_") and os.path.isdir(os.path.join(base_dir, name)):
+            try:
+                num = int(name.split("_")[1])
+                if num > largest_num:
+                    largest_num = num
+            except ValueError:
+                pass
+    if largest_num == -1:
+        return os.path.join(base_dir, "autoencoder_0")
+    else:
+        return os.path.join(base_dir, f"autoencoder_{largest_num}")
+
 def get_next_experiment_dir(base_dir="experiments"):
     os.makedirs(base_dir, exist_ok=True)
-    i = 0
-    while True:
-        exp_dir = os.path.join(base_dir, f"autoencoder_{i}")
-        if not os.path.exists(exp_dir):
-            return exp_dir
-        i += 1
+    largest_num = -1
+    for name in os.listdir(base_dir):
+        if name.startswith("autoencoder_") and os.path.isdir(os.path.join(base_dir, name)):
+            try:
+                num = int(name.split("_")[1])
+                if num > largest_num:
+                    largest_num = num
+            except ValueError:
+                pass
+    next_num = largest_num + 1
+    return os.path.join(base_dir, f"autoencoder_{next_num}")
 
 def load_config(experiment_dir, defaults_path="experiments/autoencoder_defaults.yaml"):
     if not os.path.exists(defaults_path):
@@ -73,12 +94,16 @@ def load_config(experiment_dir, defaults_path="experiments/autoencoder_defaults.
 def main():
     parser = argparse.ArgumentParser(description="Train the Autoencoder model with experiment tracking.")
     parser.add_argument('experiment_dir', nargs='?', default=None,
-                        help='Path to the experiment directory (e.g. experiments/autoencoder_0). If not provided, a new one is auto-generated.')
+                        help='Path to the experiment directory (e.g. experiments/autoencoder_0). '
+                             'Use "new" to create a new experiment directory by incrementing the last number. '
+                             'If not specified, defaults to the autoencoder directory with the largest number.')
     args = parser.parse_args()
 
     # Determine experiment directory
-    if args.experiment_dir is None:
+    if args.experiment_dir == "new":
         experiment_dir = get_next_experiment_dir()
+    elif args.experiment_dir is None:
+        experiment_dir = get_largest_experiment_dir()
     else:
         experiment_dir = args.experiment_dir
 
