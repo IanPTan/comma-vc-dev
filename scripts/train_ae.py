@@ -166,21 +166,54 @@ def main():
     else:
         val_loader = None
 
-    # Initialize model, loss, and optimizer
-    # Initialize model, loss, and optimizer
+    # Setup directories
+    data_dir = os.path.join(experiment_dir, "data")
+    os.makedirs(data_dir, exist_ok=True)
+    
+    latest_path = os.path.join(data_dir, "latest.pt")
+    best_path = os.path.join(data_dir, "best.pt")
+    results_path = os.path.join(data_dir, "results.h5")
+
+    # Resumption logic (checking checkpoint file existence and start epoch)
+    start_epoch = 1
+    best_loss = float('inf')
+    best_set = config.get('best_set', 'train')
+    checkpoint = None
+
+    if os.path.exists(latest_path):
+        print(f"Found existing checkpoint at {latest_path}. Checking resumption state...")
+        checkpoint = torch.load(latest_path, map_location=device, weights_only=False)
+        start_epoch = checkpoint['epoch'] + 1
+        best_loss = checkpoint.get('best_loss', float('inf'))
+    elif os.path.exists(best_path):
+        # Fallback to load best.pt just in case best_loss tracking is needed
+        best_checkpoint = torch.load(best_path, map_location=device, weights_only=False)
+        if best_set == 'train':
+            best_loss = best_checkpoint.get('train_loss', best_checkpoint.get('val_loss', float('inf')))
+        else:
+            best_loss = best_checkpoint.get('val_loss', float('inf'))
+
+    # Initialize model
     qat_enabled = config.get('qat', True)
+    qat_start_epoch = config.get('qat_start_epoch', 1)
+    
+    # Check if we should initialize with QAT already prepared
+    use_qat_at_init = qat_enabled and start_epoch >= qat_start_epoch
+    
     model = Autoencoder(
         base_channels=config['base_channels'],
         num_layers=config['num_layers'],
         bottleneck_channels=config['bottleneck_channels'],
-        qat=qat_enabled
+        qat=use_qat_at_init
     ).to(device)
 
-    if qat_enabled:
+    model_is_qat = False
+    if use_qat_at_init:
         import torch.ao.quantization as quantization
         model.decoder.qconfig = quantization.get_default_qat_qconfig('fbgemm')
         quantization.prepare_qat(model.decoder, inplace=True)
-        print("Prepared decoder for Quantization Aware Training (QAT).")
+        model_is_qat = True
+        print("Initialized model with QAT prepared (resuming QAT phase).")
 
     total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Model parameters: {total_params:,}")
@@ -201,58 +234,47 @@ def main():
         min_lr=scheduler_min_lr
     )
 
-    # Setup directories
-    data_dir = os.path.join(experiment_dir, "data")
-    os.makedirs(data_dir, exist_ok=True)
-    
-    latest_path = os.path.join(data_dir, "latest.pt")
-    best_path = os.path.join(data_dir, "best.pt")
-    results_path = os.path.join(data_dir, "results.h5")
-
-    # Resumption logic
-    start_epoch = 1
-    best_loss = float('inf')
-    best_set = config.get('best_set', 'train')
-
-    if os.path.exists(latest_path):
-        print(f"Found existing checkpoint at {latest_path}. Resuming training...")
-        checkpoint = torch.load(latest_path, map_location=device, weights_only=False)
+    # Load state dicts if resuming
+    if checkpoint is not None:
         model.encoder.load_state_dict(checkpoint['encoder_state_dict'])
         model.decoder.load_state_dict(checkpoint['decoder_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         if 'scheduler_state_dict' in checkpoint:
             scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-        start_epoch = checkpoint['epoch'] + 1
-        best_loss = checkpoint.get('best_loss', float('inf'))
         print(f"Resumed from epoch {checkpoint['epoch']} with best loss so far ({best_set}): {best_loss:.6f}")
-    elif os.path.exists(best_path):
-        # Fallback to load best.pt just in case best_loss tracking is needed
-        checkpoint = torch.load(best_path, map_location=device, weights_only=False)
-        if best_set == 'train':
-            best_loss = checkpoint.get('train_loss', checkpoint.get('val_loss', float('inf')))
-        else:
-            best_loss = checkpoint.get('val_loss', float('inf'))
 
     # Training loop
     epochs = config['epochs']
     save_frequency = config.get('save_frequency', 10)
-    qat_start_epoch = config.get('qat_start_epoch', 1)
 
     for epoch in range(start_epoch, epochs + 1):
         # Print current learning rate at the start of the epoch
         current_lr = optimizer.param_groups[0]['lr']
         print(f"Epoch {epoch}: learning rate = {current_lr:.6f}")
         
-        # Manage QAT fake quantization based on qat_start_epoch
-        if qat_enabled:
+        # Transition decoder dynamically to QAT at the start epoch
+        if qat_enabled and epoch >= qat_start_epoch and not model_is_qat:
             import torch.ao.quantization as quantization
-            if epoch < qat_start_epoch:
-                quantization.disable_fake_quant(model.decoder)
-                quantization.enable_observer(model.decoder)
-                print(f"Epoch {epoch}: QAT fake quantization is DISABLED (pure FP32 with active observers).")
-            else:
-                quantization.enable_fake_quant(model.decoder)
-                print(f"Epoch {epoch}: QAT fake quantization is ENABLED.")
+            model.decoder.qat = True
+            model.decoder.qconfig = quantization.get_default_qat_qconfig('fbgemm')
+            quantization.prepare_qat(model.decoder, inplace=True)
+            model_is_qat = True
+            
+            # Re-initialize optimizer and scheduler with new QAT model parameters, keeping current learning rate
+            optimizer = optim.Adam(model.parameters(), lr=current_lr)
+            scheduler = ReduceLROnPlateau(
+                optimizer,
+                mode='min',
+                factor=scheduler_factor,
+                patience=scheduler_patience,
+                min_lr=scheduler_min_lr
+            )
+            print(f"Epoch {epoch}: Transitioned decoder to QAT and re-initialized optimizer/scheduler.")
+            
+        if qat_enabled and model_is_qat:
+            print(f"Epoch {epoch}: QAT fake quantization is ACTIVE.")
+        elif qat_enabled:
+            print(f"Epoch {epoch}: Running in pure FP32 calibration/pretraining phase.")
         
         # 1. Train epoch
         model.train()
