@@ -76,18 +76,11 @@ def load_config(experiment_dir, defaults_path="experiments/autoencoder_defaults.
         if user_config:
             config.update(user_config)
     else:
-        # Write a template config.yaml for the user
+        # Clone defaults to config.yaml in the experiment directory
         os.makedirs(experiment_dir, exist_ok=True)
-        with open(config_path, 'w') as f:
-            f.write("# Experiment configuration overrides\n")
-            f.write("# Un-comment and modify to override defaults:\n")
-            f.write("# batch_size: 8\n")
-            f.write("# epochs: 10\n")
-            f.write("# learning_rate: 0.001\n")
-            f.write("# base_channels: 32\n")
-            f.write("# num_layers: 4\n")
-            f.write("# bottleneck_channels: 256\n")
-        print(f"Created template configuration at: {config_path}")
+        import shutil
+        shutil.copy(defaults_path, config_path)
+        print(f"Cloned defaults to: {config_path}")
             
     return config
 
@@ -102,6 +95,9 @@ def main():
     # Determine experiment directory
     if args.experiment_dir == "new":
         experiment_dir = get_next_experiment_dir()
+        load_config(experiment_dir)
+        print(f"Created new experiment directory: {experiment_dir}")
+        return
     elif args.experiment_dir is None:
         experiment_dir = get_largest_experiment_dir()
     else:
