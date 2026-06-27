@@ -43,48 +43,65 @@ class DecoderLayer(nn.Module):
 
 class Encoder(nn.Module):
     """
-    Encoder model with 4 layers. Downsamples using PixelUnshuffle.
+    Encoder model with configurable number of layers. Downsamples using PixelUnshuffle.
     Produces a bottleneck embedding representing regions of the image.
     """
-    def __init__(self, in_channels=3, base_channels=32):
+    def __init__(self, in_channels=3, base_channels=32, num_layers=4, bottleneck_channels=256):
         super().__init__()
-        self.layer1 = EncoderLayer(in_channels, base_channels)
-        self.layer2 = EncoderLayer(base_channels, base_channels * 2)
-        self.layer3 = EncoderLayer(base_channels * 2, base_channels * 4)
-        self.layer4 = EncoderLayer(base_channels * 4, base_channels * 8)
+        self.layers = nn.ModuleList()
+        curr_channels = in_channels
+        for i in range(num_layers):
+            out_channels = base_channels * (2 ** i)
+            self.layers.append(EncoderLayer(curr_channels, out_channels))
+            curr_channels = out_channels
+        
+        if bottleneck_channels is not None:
+            self.proj = nn.Conv2d(curr_channels, bottleneck_channels, kernel_size=1)
+        else:
+            self.proj = nn.Identity()
 
     def forward(self, x):
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        bottleneck = self.layer4(x)
-        return bottleneck
+        for layer in self.layers:
+            x = layer(x)
+        return self.proj(x)
 
 class Decoder(nn.Module):
     """
-    Decoder model with 4 layers. Upsamples using PixelShuffle.
-    Reconstructs the image from the bottleneck embedding without any skip connections.
+    Decoder model with configurable number of layers. Upsamples using PixelShuffle.
+    Reconstructs the image from the bottleneck embedding without skip connections.
     """
-    def __init__(self, out_channels=3, base_channels=32):
+    def __init__(self, out_channels=3, base_channels=32, num_layers=4, bottleneck_channels=256):
         super().__init__()
-        self.layer4 = DecoderLayer(base_channels * 8, base_channels * 4)
-        self.layer3 = DecoderLayer(base_channels * 4, base_channels * 2)
-        self.layer2 = DecoderLayer(base_channels * 2, base_channels)
-        self.layer1 = DecoderLayer(base_channels, out_channels)
+        
+        enc_out_channels = base_channels * (2 ** (num_layers - 1))
+        
+        if bottleneck_channels is not None:
+            self.proj = nn.Conv2d(bottleneck_channels, enc_out_channels, kernel_size=1)
+        else:
+            self.proj = nn.Identity()
+            
+        self.layers = nn.ModuleList()
+        curr_channels = enc_out_channels
+        for i in reversed(range(num_layers)):
+            if i > 0:
+                layer_out_channels = base_channels * (2 ** (i - 1))
+            else:
+                layer_out_channels = out_channels
+            self.layers.append(DecoderLayer(curr_channels, layer_out_channels))
+            curr_channels = layer_out_channels
 
     def forward(self, bottleneck):
-        x = self.layer4(bottleneck)
-        x = self.layer3(x)
-        x = self.layer2(x)
-        out = self.layer1(x)
-        return out
+        x = self.proj(bottleneck)
+        for layer in self.layers:
+            x = layer(x)
+        return x
 
 class Autoencoder(nn.Module):
     """Complete Autoencoder wrapping Encoder and Decoder modules."""
-    def __init__(self, in_channels=3, out_channels=3, base_channels=32):
+    def __init__(self, in_channels=3, out_channels=3, base_channels=32, num_layers=4, bottleneck_channels=256):
         super().__init__()
-        self.encoder = Encoder(in_channels, base_channels)
-        self.decoder = Decoder(out_channels, base_channels)
+        self.encoder = Encoder(in_channels, base_channels, num_layers, bottleneck_channels)
+        self.decoder = Decoder(out_channels, base_channels, num_layers, bottleneck_channels)
 
     def forward(self, x):
         bottleneck = self.encoder(x)
@@ -105,8 +122,8 @@ if __name__ == '__main__':
     dummy_input = torch.randn(2, 3, height, width)
     print(f"Input shape: {dummy_input.shape}")
     
-    encoder = Encoder()
-    decoder = Decoder()
+    encoder = Encoder(num_layers=4, bottleneck_channels=256)
+    decoder = Decoder(num_layers=4, bottleneck_channels=256)
     
     bottleneck = encoder(dummy_input)
     print(f"Bottleneck shape (embedding): {bottleneck.shape}")
@@ -114,7 +131,7 @@ if __name__ == '__main__':
     output = decoder(bottleneck)
     print(f"Output shape: {output.shape}")
     
-    # Also test the combined autoencoder
-    ae = Autoencoder()
+    # Also test the combined autoencoder with custom layers
+    ae = Autoencoder(num_layers=3, base_channels=16, bottleneck_channels=128)
     ae_output = ae(dummy_input)
-    print(f"Autoencoder output shape: {ae_output.shape}")
+    print(f"Dynamic Autoencoder output shape: {ae_output.shape}")
