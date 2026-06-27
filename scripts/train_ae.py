@@ -188,6 +188,19 @@ def main():
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=config['learning_rate'])
 
+    # Initialize scheduler
+    from torch.optim.lr_scheduler import ReduceLROnPlateau
+    scheduler_patience = config.get('scheduler_patience', 5)
+    scheduler_factor = config.get('scheduler_factor', 0.5)
+    scheduler_min_lr = config.get('scheduler_min_lr', 1e-6)
+    scheduler = ReduceLROnPlateau(
+        optimizer,
+        mode='min',
+        factor=scheduler_factor,
+        patience=scheduler_patience,
+        min_lr=scheduler_min_lr
+    )
+
     # Setup directories
     data_dir = os.path.join(experiment_dir, "data")
     os.makedirs(data_dir, exist_ok=True)
@@ -207,6 +220,8 @@ def main():
         model.encoder.load_state_dict(checkpoint['encoder_state_dict'])
         model.decoder.load_state_dict(checkpoint['decoder_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        if 'scheduler_state_dict' in checkpoint:
+            scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
         start_epoch = checkpoint['epoch'] + 1
         best_loss = checkpoint.get('best_loss', float('inf'))
         print(f"Resumed from epoch {checkpoint['epoch']} with best loss so far ({best_set}): {best_loss:.6f}")
@@ -223,6 +238,10 @@ def main():
     save_frequency = config.get('save_frequency', 10)
 
     for epoch in range(start_epoch, epochs + 1):
+        # Print current learning rate at the start of the epoch
+        current_lr = optimizer.param_groups[0]['lr']
+        print(f"Epoch {epoch}: learning rate = {current_lr:.6f}")
+        
         # 1. Train epoch
         model.train()
         train_loss = 0.0
@@ -271,6 +290,10 @@ def main():
             f['train_loss'][epoch - 1] = train_loss
             f['val_loss'][epoch - 1] = val_loss
 
+        # Step scheduler based on best_set loss
+        monitor_loss = train_loss if best_set == 'train' else val_loss
+        scheduler.step(monitor_loss)
+
         # 4. Save best model if tracked loss improved
         best_set = config.get('best_set', 'train')
         current_metric = train_loss if best_set == 'train' else val_loss
@@ -292,6 +315,7 @@ def main():
                 'encoder_state_dict': model.encoder.state_dict(),
                 'decoder_state_dict': model.decoder.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_state_dict': scheduler.state_dict(),
                 'best_loss': best_loss,
                 'train_loss': train_loss,
                 'val_loss': val_loss

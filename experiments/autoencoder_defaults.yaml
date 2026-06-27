@@ -10,6 +10,11 @@ val_split: 0.0
 best_set: "train"
 qat: true
 
+# Scheduler parameters
+scheduler_patience: 5
+scheduler_factor: 0.5
+scheduler_min_lr: 0.000001
+
 # Model architecture hyperparameters
 base_channels: 32
 num_layers: 4
