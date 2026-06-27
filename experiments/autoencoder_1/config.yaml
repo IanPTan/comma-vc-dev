@@ -1,6 +1,6 @@
-# Experiment configuration overrides
-batch_size: 2
-epochs: 1
+# Default hyperparameters for training autoencoder
+batch_size: 8
+epochs: 100
 dataset: "data/frames.h5"
 learning_rate: 0.001
 num_workers: 0
@@ -11,6 +11,6 @@ best_set: "train"
 qat: true
 
 # Model architecture hyperparameters
-base_channels: 32
+base_channels: 8
 num_layers: 4
-bottleneck_channels: 256
+bottleneck_channels: 64
