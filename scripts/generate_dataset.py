@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""
+Script to extract frames from a video and save them to an HDF5 file.
+Extracts the first 6 frames and then the remaining even frames.
+"""
+
+import argparse
+import os
+import subprocess
+import numpy as np
+import h5py
+
+def get_video_dimensions(video_path):
+    """Get the width and height of the video using ffprobe."""
+    cmd = [
+        'ffprobe', '-v', 'error',
+        '-select_streams', 'v:0',
+        '-show_entries', 'stream=width,height',
+        '-of', 'csv=p=0',
+        video_path
+    ]
+    try:
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error running ffprobe: {e.stderr}")
+        raise
+    
+    parts = result.stdout.strip().split(',')
+    if len(parts) < 2:
+        raise ValueError(f"Could not parse video dimensions from ffprobe output: {result.stdout}")
+    
+    width = int(parts[0])
+    height = int(parts[1])
+    return width, height
+
+def main():
+    parser = argparse.ArgumentParser(description="Extract selected frames from a video into an HDF5 file.")
+    parser.add_argument('-i', '--input', default='data/0.mkv', help='Path to the input video file (default: data/0.mkv)')
+    parser.add_argument('-o', '--output', default='data/frames.h5', help='Path to the output HDF5 file (default: data/frames.h5)')
+    args = parser.parse_args()
+
+    input_path = args.input
+    output_path = args.output
+
+    if not os.path.exists(input_path):
+        print(f"Error: Input video file '{input_path}' does not exist.")
+        return
+
+    # Create output directory if it does not exist
+    output_dir = os.path.dirname(output_path)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+
+    print(f"Reading video: {input_path}")
+    try:
+        width, height = get_video_dimensions(input_path)
+        print(f"Video dimensions: {width}x{height}")
+    except Exception as e:
+        print(f"Failed to get video dimensions: {e}")
+        return
+
+    frame_size = width * height * 3
+
+    # Command to decode video frames to raw RGB24
+    ffmpeg_cmd = [
+        'ffmpeg', '-i', input_path,
+        '-f', 'image2pipe',
+        '-pix_fmt', 'rgb24',
+        '-vcodec', 'rawvideo',
+        '-'
+    ]
+
+    print(f"Extracting and saving frames to {output_path}...")
+    
+    process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    
+    saved_count = 0
+    total_processed = 0
+
+    try:
+        with h5py.File(output_path, 'w') as h5_file:
+            # We create a resizable dataset for the frames.
+            # Shape is (num_frames, height, width, 3)
+            dset = h5_file.create_dataset(
+                'frames',
+                shape=(0, height, width, 3),
+                maxshape=(None, height, width, 3),
+                dtype=np.uint8,
+                chunks=(1, height, width, 3)
+            )
+
+            while True:
+                raw_frame = process.stdout.read(frame_size)
+                if len(raw_frame) != frame_size:
+                    break
+
+                # Frame selection logic: first 6 frames (0-5) and remaining even frames (6, 8, ...)
+                if total_processed < 6 or total_processed % 2 == 0:
+                    frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape((height, width, 3))
+                    
+                    # Append to HDF5 dataset
+                    dset.resize(dset.shape[0] + 1, axis=0)
+                    dset[-1] = frame
+                    saved_count += 1
+
+                total_processed += 1
+                if total_processed % 100 == 0:
+                    print(f"Processed {total_processed} frames, saved {saved_count}...")
+
+    except Exception as e:
+        print(f"An error occurred during frame extraction: {e}")
+        if os.path.exists(output_path):
+            os.remove(output_path)
+        return
+    finally:
+        process.terminate()
+        process.wait()
+
+    print(f"Finished. Total frames processed: {total_processed}, frames saved to H5: {saved_count}")
+
+if __name__ == '__main__':
+    main()
