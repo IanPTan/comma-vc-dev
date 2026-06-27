@@ -11,13 +11,14 @@ import subprocess
 import numpy as np
 import h5py
 from PIL import Image
+from tqdm import tqdm
 
-def get_video_dimensions(video_path):
-    """Get the width and height of the video using ffprobe."""
+def get_video_info(video_path):
+    """Get the width, height, and total frames of the video using ffprobe."""
     cmd = [
         'ffprobe', '-v', 'error',
         '-select_streams', 'v:0',
-        '-show_entries', 'stream=width,height',
+        '-show_entries', 'stream=width,height,r_frame_rate:format=duration',
         '-of', 'csv=p=0',
         video_path
     ]
@@ -27,13 +28,30 @@ def get_video_dimensions(video_path):
         print(f"Error running ffprobe: {e.stderr}")
         raise
     
-    parts = result.stdout.strip().split(',')
-    if len(parts) < 2:
-        raise ValueError(f"Could not parse video dimensions from ffprobe output: {result.stdout}")
+    lines = result.stdout.strip().split('\n')
+    if len(lines) == 0 or not lines[0]:
+        raise ValueError(f"Could not parse ffprobe output: {result.stdout}")
+
+    stream_parts = lines[0].split(',')
+    width = int(stream_parts[0])
+    height = int(stream_parts[1])
     
-    width = int(parts[0])
-    height = int(parts[1])
-    return width, height
+    total_frames = None
+    if len(lines) >= 2 and stream_parts[2] != 'N/A' and lines[1].strip() != 'N/A':
+        try:
+            r_frame_rate = stream_parts[2]
+            fps_parts = r_frame_rate.split('/')
+            if len(fps_parts) == 2:
+                fps = float(fps_parts[0]) / float(fps_parts[1])
+            else:
+                fps = float(r_frame_rate)
+                
+            duration = float(lines[1].strip())
+            total_frames = int(duration * fps)
+        except Exception:
+            pass
+            
+    return width, height, total_frames
 
 def main():
     parser = argparse.ArgumentParser(description="Extract selected frames from a video into an HDF5 file.")
@@ -57,10 +75,14 @@ def main():
 
     print(f"Reading video: {input_path}")
     try:
-        orig_width, orig_height = get_video_dimensions(input_path)
+        orig_width, orig_height, total_frames = get_video_info(input_path)
         print(f"Original video dimensions: {orig_width}x{orig_height}")
+        if total_frames:
+            print(f"Estimated total frames: {total_frames}")
+        else:
+            print("Total frames count not available in container metadata.")
     except Exception as e:
-        print(f"Failed to get video dimensions: {e}")
+        print(f"Failed to get video info: {e}")
         return
 
     if disable_resize:
@@ -101,28 +123,29 @@ def main():
                 chunks=(1, height, width, 3)
             )
 
-            while True:
-                raw_frame = process.stdout.read(orig_frame_size)
-                if len(raw_frame) != orig_frame_size:
-                    break
+            with tqdm(total=total_frames, desc="Processing frames", unit="f") as pbar:
+                while True:
+                    raw_frame = process.stdout.read(orig_frame_size)
+                    if len(raw_frame) != orig_frame_size:
+                        break
 
-                # Frame selection logic: first 6 frames (0-5) and remaining even frames (6, 8, ...)
-                if total_processed < 6 or total_processed % 2 == 0:
-                    frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape((orig_height, orig_width, 3))
-                    
-                    if not disable_resize:
-                        img = Image.fromarray(frame)
-                        img_resized = img.resize((width, height), resample=Image.Resampling.BILINEAR)
-                        frame = np.array(img_resized)
+                    # Frame selection logic: first 6 frames (0-5) and remaining even frames (6, 8, ...)
+                    if total_processed < 6 or total_processed % 2 == 0:
+                        frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape((orig_height, orig_width, 3))
+                        
+                        if not disable_resize:
+                            img = Image.fromarray(frame)
+                            img_resized = img.resize((width, height), resample=Image.Resampling.BILINEAR)
+                            frame = np.array(img_resized)
 
-                    # Append to HDF5 dataset
-                    dset.resize(dset.shape[0] + 1, axis=0)
-                    dset[-1] = frame
-                    saved_count += 1
+                        # Append to HDF5 dataset
+                        dset.resize(dset.shape[0] + 1, axis=0)
+                        dset[-1] = frame
+                        saved_count += 1
 
-                total_processed += 1
-                if total_processed % 100 == 0:
-                    print(f"Processed {total_processed} frames, saved {saved_count}...")
+                    total_processed += 1
+                    pbar.update(1)
+                    pbar.set_postfix(saved=saved_count)
 
     except Exception as e:
         print(f"An error occurred during frame extraction: {e}")
