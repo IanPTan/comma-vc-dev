@@ -2,6 +2,7 @@
 """
 Script to extract frames from a video and save them to an HDF5 file.
 Extracts the first 6 frames and then the remaining even frames.
+Resizes frames to the closest multiple of 64 less than the dimensions by default.
 """
 
 import argparse
@@ -9,6 +10,7 @@ import os
 import subprocess
 import numpy as np
 import h5py
+from PIL import Image
 
 def get_video_dimensions(video_path):
     """Get the width and height of the video using ffprobe."""
@@ -37,10 +39,12 @@ def main():
     parser = argparse.ArgumentParser(description="Extract selected frames from a video into an HDF5 file.")
     parser.add_argument('-i', '--input', default='data/0.mkv', help='Path to the input video file (default: data/0.mkv)')
     parser.add_argument('-o', '--output', default='data/frames.h5', help='Path to the output HDF5 file (default: data/frames.h5)')
+    parser.add_argument('-r', action='store_true', help='Disable resizing (default is to resize to closest multiple of 64)')
     args = parser.parse_args()
 
     input_path = args.input
     output_path = args.output
+    disable_resize = args.r
 
     if not os.path.exists(input_path):
         print(f"Error: Input video file '{input_path}' does not exist.")
@@ -53,15 +57,23 @@ def main():
 
     print(f"Reading video: {input_path}")
     try:
-        width, height = get_video_dimensions(input_path)
-        print(f"Video dimensions: {width}x{height}")
+        orig_width, orig_height = get_video_dimensions(input_path)
+        print(f"Original video dimensions: {orig_width}x{orig_height}")
     except Exception as e:
         print(f"Failed to get video dimensions: {e}")
         return
 
-    frame_size = width * height * 3
+    if disable_resize:
+        width, height = orig_width, orig_height
+        print("Resizing is disabled.")
+    else:
+        width = (orig_width // 64) * 64
+        height = (orig_height // 64) * 64
+        print(f"Resizing enabled. Target dimensions (closest multiple of 64): {width}x{height}")
 
-    # Command to decode video frames to raw RGB24
+    orig_frame_size = orig_width * orig_height * 3
+
+    # Command to decode video frames to raw RGB24 at original resolution
     ffmpeg_cmd = [
         'ffmpeg', '-i', input_path,
         '-f', 'image2pipe',
@@ -90,14 +102,19 @@ def main():
             )
 
             while True:
-                raw_frame = process.stdout.read(frame_size)
-                if len(raw_frame) != frame_size:
+                raw_frame = process.stdout.read(orig_frame_size)
+                if len(raw_frame) != orig_frame_size:
                     break
 
                 # Frame selection logic: first 6 frames (0-5) and remaining even frames (6, 8, ...)
                 if total_processed < 6 or total_processed % 2 == 0:
-                    frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape((height, width, 3))
+                    frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape((orig_height, orig_width, 3))
                     
+                    if not disable_resize:
+                        img = Image.fromarray(frame)
+                        img_resized = img.resize((width, height), resample=Image.Resampling.BILINEAR)
+                        frame = np.array(img_resized)
+
                     # Append to HDF5 dataset
                     dset.resize(dset.shape[0] + 1, axis=0)
                     dset[-1] = frame
