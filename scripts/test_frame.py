@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 from PIL import Image
+import matplotlib.pyplot as plt
 from pathlib import Path
 import sys
 
@@ -55,13 +56,32 @@ def main():
         init_type='siren'
     ).to(device)
     
+    # Create experiments directory structure
+    experiments_dir = Path("experiments/frame0_test")
+    recon_dir = experiments_dir / "recon"
+    experiments_dir.mkdir(parents=True, exist_ok=True)
+    recon_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Save the original image as 0000.png in the recon directory
+    orig_pil = Image.fromarray(frame)
+    orig_pil.save(recon_dir / "0000.png")
+    
+    # Cast model and inputs to bfloat16
+    print("Converting model and inputs to bfloat16...")
+    model = model.bfloat16()
+    coords = coords.bfloat16()
+    img_target_flat = img_target_flat.bfloat16()
+    
     # 4. Train the model to overfit using minibatches to prevent VRAM overflow
     optimizer = optim.Adam(model.parameters(), lr=5e-3)
     criterion = nn.MSELoss()
     
     epochs = 1000
     batch_size = 131072
-    print(f"Overfitting to frame 0 for {epochs} epochs (batch size: {batch_size})...")
+    report_interval = 100
+    print(f"Overfitting to frame 0 for {epochs} epochs (batch size: {batch_size}, report interval: {report_interval})...")
+    
+    loss_history = []
     
     for epoch in range(1, epochs + 1):
         # Shuffle coordinates each epoch
@@ -82,40 +102,46 @@ def main():
             epoch_loss += loss.item() * len(indices)
             
         epoch_loss /= coords.size(0)
+        loss_history.append(epoch_loss)
         
-        if epoch % 100 == 0 or epoch == 1:
+        # Merge printing and reconstruction capture condition
+        if epoch == 1 or epoch % report_interval == 0:
             psnr = -10.0 * np.log10(epoch_loss) if epoch_loss > 0 else float('inf')
             print(f"Epoch {epoch:4d}/{epochs} | Loss: {epoch_loss:.6f} | PSNR: {psnr:.2f} dB")
             
-    # 5. Save the trained model and reconstructed image
-    with torch.no_grad():
-        preds = []
-        for i in range(0, coords.size(0), batch_size):
-            preds.append(model(coords[i:i+batch_size]))
-        final_pred = torch.cat(preds, dim=0).view(H, W, C)
-        final_pred = final_pred.clamp(0.0, 1.0).cpu().numpy()
-        
-    recon_img_np = (final_pred * 255.0).astype(np.uint8)
-    recon_pil = Image.fromarray(recon_img_np)
-    
-    # Load original frame as PIL image
-    orig_pil = Image.fromarray(frame)
-    
-    # Concatenate original and reconstructed images side-by-side
-    combined_img = Image.new('RGB', (2 * W, H))
-    combined_img.paste(orig_pil, (0, 0))
-    combined_img.paste(recon_pil, (W, 0))
-    
-    # Save directly in data/
-    recon_path = Path("data/frame0_recon.png")
-    model_path = Path("data/frame0.pt")
-    
-    combined_img.save(recon_path)
+            # Capture the reconstruction
+            with torch.no_grad():
+                preds = []
+                for i in range(0, coords.size(0), batch_size):
+                    preds.append(model(coords[i:i+batch_size]))
+                pred_img = torch.cat(preds, dim=0).view(H, W, C)
+                pred_img = pred_img.float().clamp(0.0, 1.0).cpu().numpy()
+            recon_img_np = (pred_img * 255.0).astype(np.uint8)
+            pil_img = Image.fromarray(recon_img_np)
+            
+            # Save the reconstruction frame as f"{epoch:04d}.png" in the recon directory
+            pil_img.save(recon_dir / f"{epoch:04d}.png")
+            
+    # 5. Save the trained model weights
+    model_path = experiments_dir / "frame0.pt"
     torch.save(model.state_dict(), model_path)
     
+    # Plot and save the loss graph
+    plt.figure(figsize=(10, 5))
+    plt.plot(range(1, epochs + 1), loss_history, label='Training Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('MSE Loss')
+    plt.yscale('log')
+    plt.title('Training Loss over Epochs')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(experiments_dir / "loss.png")
+    plt.close()
+    
     print(f"\nDone!")
-    print(f"  Reconstructed frame saved to: {recon_path}")
-    print(f"  Model weights saved to:       {model_path}")
+    print(f"  Model weights saved to:     {model_path}")
+    print(f"  Loss plot saved to:         {experiments_dir}/loss.png")
+    print(f"  Reconstructed frames saved to: {recon_dir}/")
 
 if __name__ == '__main__':
     main()
