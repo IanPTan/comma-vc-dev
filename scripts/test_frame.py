@@ -55,27 +55,44 @@ def main():
         init_type='siren'
     ).to(device)
     
-    # 4. Train the model to overfit
+    # 4. Train the model to overfit using minibatches to prevent VRAM overflow
     optimizer = optim.Adam(model.parameters(), lr=5e-3)
     criterion = nn.MSELoss()
     
     epochs = 1000
-    print(f"Overfitting to frame 0 for {epochs} epochs...")
+    batch_size = 16384
+    print(f"Overfitting to frame 0 for {epochs} epochs (batch size: {batch_size})...")
     
     for epoch in range(1, epochs + 1):
-        optimizer.zero_grad()
-        pred = model(coords)
-        loss = criterion(pred, img_target_flat)
-        loss.backward()
-        optimizer.step()
+        # Shuffle coordinates each epoch
+        permutation = torch.randperm(coords.size(0))
+        epoch_loss = 0.0
+        
+        for i in range(0, coords.size(0), batch_size):
+            indices = permutation[i:i+batch_size]
+            batch_coords = coords[indices]
+            batch_targets = img_target_flat[indices]
+            
+            optimizer.zero_grad()
+            pred = model(batch_coords)
+            loss = criterion(pred, batch_targets)
+            loss.backward()
+            optimizer.step()
+            
+            epoch_loss += loss.item() * len(indices)
+            
+        epoch_loss /= coords.size(0)
         
         if epoch % 100 == 0 or epoch == 1:
-            psnr = -10.0 * np.log10(loss.item()) if loss.item() > 0 else float('inf')
-            print(f"Epoch {epoch:4d}/{epochs} | Loss: {loss.item():.6f} | PSNR: {psnr:.2f} dB")
+            psnr = -10.0 * np.log10(epoch_loss) if epoch_loss > 0 else float('inf')
+            print(f"Epoch {epoch:4d}/{epochs} | Loss: {epoch_loss:.6f} | PSNR: {psnr:.2f} dB")
             
     # 5. Save the trained model and reconstructed image
     with torch.no_grad():
-        final_pred = model(coords).view(H, W, C)
+        preds = []
+        for i in range(0, coords.size(0), batch_size):
+            preds.append(model(coords[i:i+batch_size]))
+        final_pred = torch.cat(preds, dim=0).view(H, W, C)
         final_pred = final_pred.clamp(0.0, 1.0).cpu().numpy()
         
     recon_img_np = (final_pred * 255.0).astype(np.uint8)
