@@ -160,44 +160,46 @@ def main():
                     if len(raw_frame) != orig_frame_size:
                         break
 
-                    frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape((orig_height, orig_width, 3))
-                    
-                    if not disable_resize:
-                        img = Image.fromarray(frame)
-                        img_resized = img.resize((width, height), resample=Image.Resampling.BILINEAR)
-                        frame = np.array(img_resized)
+                    # Frame selection logic: first 6 frames (0-5) and remaining even frames (6, 8, ...)
+                    if total_processed < 6 or total_processed % 2 == 0:
+                        frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape((orig_height, orig_width, 3))
+                        
+                        if not disable_resize:
+                            img = Image.fromarray(frame)
+                            img_resized = img.resize((width, height), resample=Image.Resampling.BILINEAR)
+                            frame = np.array(img_resized)
 
-                    # Store all frames in H5
-                    dset_frames.resize(dset_frames.shape[0] + 1, axis=0)
-                    dset_frames[-1] = frame
-                    saved_count += 1
+                        # Store selected frame in H5
+                        dset_frames.resize(dset_frames.shape[0] + 1, axis=0)
+                        dset_frames[-1] = frame
+                        saved_count += 1
 
-                    # Run SegNet on even frames (0, 2, 4, ...)
-                    if total_processed % 2 == 0:
-                        frame_t = torch.from_numpy(frame).permute(2, 0, 1).unsqueeze(0).float().to(device)
-                        with torch.inference_mode():
-                            seg_out = manager.segnet(frame_t)
-                            seg_argmax = seg_out.argmax(dim=1).squeeze(0).cpu().numpy().astype(np.uint8)
-                        dset_seg.resize(dset_seg.shape[0] + 1, axis=0)
-                        dset_seg[-1] = seg_argmax
-
-                    # Run PoseNet on the first 3 pairs (frames 0 to 5)
-                    if total_processed < 6:
-                        pose_buffer.append(frame)
-                        if len(pose_buffer) == 2:
-                            pair_t = torch.stack([
-                                torch.from_numpy(pose_buffer[0]).permute(2, 0, 1),
-                                torch.from_numpy(pose_buffer[1]).permute(2, 0, 1)
-                            ]).unsqueeze(0).float().to(device)
-                            
+                        # Run SegNet on even frames (0, 2, 4, ...)
+                        if total_processed % 2 == 0:
+                            frame_t = torch.from_numpy(frame).permute(2, 0, 1).unsqueeze(0).float().to(device)
                             with torch.inference_mode():
-                                posenet_in = manager.posenet.preprocess_input(pair_t)
-                                posenet_out = manager.posenet(posenet_in)
-                                pos_val = posenet_out['pose'].squeeze(0).cpu().numpy().astype(np.float32)
-                            
-                            dset_pos.resize(dset_pos.shape[0] + 1, axis=0)
-                            dset_pos[-1] = pos_val
-                            pose_buffer = []
+                                seg_out = manager.segnet(frame_t)
+                                seg_argmax = seg_out.argmax(dim=1).squeeze(0).cpu().numpy().astype(np.uint8)
+                            dset_seg.resize(dset_seg.shape[0] + 1, axis=0)
+                            dset_seg[-1] = seg_argmax
+
+                        # Run PoseNet on the first 3 pairs (frames 0 to 5)
+                        if total_processed < 6:
+                            pose_buffer.append(frame)
+                            if len(pose_buffer) == 2:
+                                pair_t = torch.stack([
+                                    torch.from_numpy(pose_buffer[0]).permute(2, 0, 1),
+                                    torch.from_numpy(pose_buffer[1]).permute(2, 0, 1)
+                                ]).unsqueeze(0).float().to(device)
+                                
+                                with torch.inference_mode():
+                                    posenet_in = manager.posenet.preprocess_input(pair_t)
+                                    posenet_out = manager.posenet(posenet_in)
+                                    pos_val = posenet_out['pose'].squeeze(0).cpu().numpy().astype(np.float32)
+                                
+                                dset_pos.resize(dset_pos.shape[0] + 1, axis=0)
+                                dset_pos[-1] = pos_val
+                                pose_buffer = []
 
                     total_processed += 1
                     pbar.update(1)
