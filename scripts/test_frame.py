@@ -59,8 +59,8 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=5e-3)
     criterion = nn.MSELoss()
     
-    epochs = 100
-    batch_size = 16384
+    epochs = 1000
+    batch_size = 131072
     print(f"Overfitting to frame 0 for {epochs} epochs (batch size: {batch_size})...")
     
     for epoch in range(1, epochs + 1):
@@ -83,9 +83,9 @@ def main():
             
         epoch_loss /= coords.size(0)
         
-        if epoch % 10 == 0 or epoch == 1:
+        if epoch % 100 == 0 or epoch == 1:
             psnr = -10.0 * np.log10(epoch_loss) if epoch_loss > 0 else float('inf')
-            print(f"Epoch {epoch:3d}/{epochs} | Loss: {epoch_loss:.6f} | PSNR: {psnr:.2f} dB")
+            print(f"Epoch {epoch:4d}/{epochs} | Loss: {epoch_loss:.6f} | PSNR: {psnr:.2f} dB")
             
     # 5. Save the trained model and reconstructed image
     with torch.no_grad():
@@ -98,11 +98,19 @@ def main():
     recon_img_np = (final_pred * 255.0).astype(np.uint8)
     recon_pil = Image.fromarray(recon_img_np)
     
+    # Load original frame as PIL image
+    orig_pil = Image.fromarray(frame)
+    
+    # Concatenate original and reconstructed images side-by-side
+    combined_img = Image.new('RGB', (2 * W, H))
+    combined_img.paste(orig_pil, (0, 0))
+    combined_img.paste(recon_pil, (W, 0))
+    
     # Save directly in data/
     recon_path = Path("data/frame0_recon.png")
     model_path = Path("data/frame0.pt")
     
-    recon_pil.save(recon_path)
+    combined_img.save(recon_path)
     torch.save(model.state_dict(), model_path)
     
     print(f"\nDone!")
