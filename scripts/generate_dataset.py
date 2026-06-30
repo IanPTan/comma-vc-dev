@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Script to extract frames from a video and save them to an HDF5 file.
 Extracts all frames resized to 384x512 by default.

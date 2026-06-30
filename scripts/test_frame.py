@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import h5py
 import torch
 import torch.nn as nn

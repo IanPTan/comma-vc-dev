@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 from evaluator.loss import (
     segnet_cost_term,
     posenet_cost_term,

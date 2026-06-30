@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import torch
 import math
 from safetensors.torch import load_file

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import torch
 
 def rgb_to_yuv6(rgb_chw: torch.Tensor) -> torch.Tensor:
