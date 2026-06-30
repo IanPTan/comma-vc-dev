@@ -59,7 +59,7 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=5e-3)
     criterion = nn.MSELoss()
     
-    epochs = 1000
+    epochs = 100
     batch_size = 16384
     print(f"Overfitting to frame 0 for {epochs} epochs (batch size: {batch_size})...")
     
@@ -83,9 +83,9 @@ def main():
             
         epoch_loss /= coords.size(0)
         
-        if epoch % 100 == 0 or epoch == 1:
+        if epoch % 10 == 0 or epoch == 1:
             psnr = -10.0 * np.log10(epoch_loss) if epoch_loss > 0 else float('inf')
-            print(f"Epoch {epoch:4d}/{epochs} | Loss: {epoch_loss:.6f} | PSNR: {psnr:.2f} dB")
+            print(f"Epoch {epoch:3d}/{epochs} | Loss: {epoch_loss:.6f} | PSNR: {psnr:.2f} dB")
             
     # 5. Save the trained model and reconstructed image
     with torch.no_grad():
