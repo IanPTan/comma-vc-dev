@@ -52,7 +52,7 @@ def main():
         hidden_layers=3,
         omega0=20.0,
         s0=10.0,
-        complex_weights=True,
+        complex_weights=False,
         init_type='siren'
     ).to(device)
     
@@ -66,11 +66,11 @@ def main():
     orig_pil = Image.fromarray(frame)
     orig_pil.save(recon_dir / "0000.png")
     
-    # Cast model and inputs to float16 (half)
-    print("Converting model and inputs to float16...")
-    model = model.half()
-    coords = coords.half()
-    img_target_flat = img_target_flat.half()
+    # Cast model and inputs to bfloat16
+    print("Converting model and inputs to bfloat16...")
+    model = model.bfloat16()
+    coords = coords.bfloat16()
+    img_target_flat = img_target_flat.bfloat16()
     
     # 4. Train the model to overfit using minibatches to prevent VRAM overflow
     optimizer = optim.Adam(model.parameters(), lr=5e-3)
