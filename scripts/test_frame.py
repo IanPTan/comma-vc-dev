@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 from PIL import Image
-import matplotlib.pyplot as plt
+from tqdm import tqdm
 from pathlib import Path
 import sys
 
@@ -43,24 +43,15 @@ def main():
     grid_y, grid_x = torch.meshgrid(y_coords, x_coords, indexing='ij')
     coords = torch.stack([grid_y, grid_x], dim=-1).view(-1, 2)  # (H*W, 2)
     
-    # 3. Instantiate WIRE model
-    print("Instantiating WIRE model...")
-    model = WIRE(
-        in_features=2,
-        out_features=3,
-        hidden_features=256,
-        hidden_layers=3,
-        omega0=20.0,
-        s0=10.0,
-        complex_weights=False,
-        init_type='siren'
-    ).to(device)
+    # Cast input coordinates and targets to bfloat16
+    print("Converting inputs to bfloat16...")
+    coords = coords.bfloat16()
+    img_target_flat = img_target_flat.bfloat16()
     
-    # Create experiments directory structure
+    # 3. Setup experiment directories
     experiments_dir = Path("experiments/frame0_test")
     recon_dir = experiments_dir / "recon"
     
-    # Wipe the directory if it exists to avoid mixing files from old runs
     if experiments_dir.exists():
         import shutil
         shutil.rmtree(experiments_dir)
@@ -68,86 +59,87 @@ def main():
     experiments_dir.mkdir(parents=True, exist_ok=True)
     recon_dir.mkdir(parents=True, exist_ok=True)
     
-    # Save the original image as 0000.png in the recon directory
-    orig_pil = Image.fromarray(frame)
-    orig_pil.save(recon_dir / "0000.png")
+    # Save original image
+    Image.fromarray(frame).save(recon_dir / "original.png")
     
-    # Cast model and inputs to bfloat16
-    print("Converting model and inputs to bfloat16...")
-    model = model.bfloat16()
-    coords = coords.bfloat16()
-    img_target_flat = img_target_flat.bfloat16()
-    
-    # 4. Train the model to overfit using minibatches to prevent VRAM overflow
-    optimizer = optim.Adam(model.parameters(), lr=5e-3)
-    criterion = nn.MSELoss()
-    
+    # 4. Run parameter-sweeping experiments
+    widths = [8, 16, 32, 64, 128, 256, 512]
+    num_trials = 10
     epochs = 100
     batch_size = 131072
-    report_interval = 10
-    print(f"Overfitting to frame 0 for {epochs} epochs (batch size: {batch_size}, report interval: {report_interval})...")
     
-    loss_history = []
+    loss_h5_path = experiments_dir / "loss.h5"
+    print(f"Starting sweeps: widths={widths}, trials={num_trials}, epochs={epochs}")
     
-    for epoch in range(1, epochs + 1):
-        # Shuffle coordinates each epoch
-        permutation = torch.randperm(coords.size(0))
-        epoch_loss = 0.0
-        
-        for i in range(0, coords.size(0), batch_size):
-            indices = permutation[i:i+batch_size]
-            batch_coords = coords[indices]
-            batch_targets = img_target_flat[indices]
+    with h5py.File(loss_h5_path, 'w') as h5_file:
+        for w in widths:
+            group = h5_file.create_group(f"width_{w}")
+            print(f"\n--- Width {w} ---")
             
-            optimizer.zero_grad()
-            pred = model(batch_coords)
-            loss = criterion(pred, batch_targets)
-            loss.backward()
-            optimizer.step()
-            
-            epoch_loss += loss.item() * len(indices)
-            
-        epoch_loss /= coords.size(0)
-        loss_history.append(epoch_loss)
-        
-        # Merge printing and reconstruction capture condition
-        if epoch == 1 or epoch % report_interval == 0:
-            psnr = -10.0 * np.log10(epoch_loss) if epoch_loss > 0 else float('inf')
-            print(f"Epoch {epoch:4d}/{epochs} | Loss: {epoch_loss:.6f} | PSNR: {psnr:.2f} dB")
-            
-            # Capture the reconstruction
-            with torch.no_grad():
-                preds = []
-                for i in range(0, coords.size(0), batch_size):
-                    preds.append(model(coords[i:i+batch_size]))
-                pred_img = torch.cat(preds, dim=0).view(H, W, C)
-                pred_img = pred_img.float().clamp(0.0, 1.0).cpu().numpy()
-            recon_img_np = (pred_img * 255.0).astype(np.uint8)
-            pil_img = Image.fromarray(recon_img_np)
-            
-            # Save the reconstruction frame as f"{epoch:04d}.png" in the recon directory
-            pil_img.save(recon_dir / f"{epoch:04d}.png")
-            
-    # 5. Save the trained model weights
-    model_path = experiments_dir / "frame0.pt"
-    torch.save(model.state_dict(), model_path)
-    
-    # Plot and save the loss graph
-    plt.figure(figsize=(10, 5))
-    plt.plot(range(1, epochs + 1), loss_history, label='Training Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('MSE Loss')
-    plt.yscale('log')
-    plt.title('Training Loss over Epochs')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(experiments_dir / "loss.png")
-    plt.close()
-    
-    print(f"\nDone!")
-    print(f"  Model weights saved to:     {model_path}")
-    print(f"  Loss plot saved to:         {experiments_dir}/loss.png")
-    print(f"  Reconstructed frames saved to: {recon_dir}/")
+            for t in range(num_trials):
+                # Instantiate real-valued WIRE model
+                model = WIRE(
+                    in_features=2,
+                    out_features=3,
+                    hidden_features=w,
+                    hidden_layers=3,
+                    omega0=20.0,
+                    s0=10.0,
+                    complex_weights=False,
+                    init_type='siren'
+                ).to(device)
+                
+                model = model.bfloat16()
+                
+                optimizer = optim.Adam(model.parameters(), lr=5e-3)
+                criterion = nn.MSELoss()
+                
+                trial_losses = []
+                
+                # Wrap epoch range in tqdm progress bar
+                pbar = tqdm(range(1, epochs + 1), desc=f"Width {w:3d} | Trial {t:2d}", leave=True)
+                for epoch in pbar:
+                    permutation = torch.randperm(coords.size(0))
+                    epoch_loss = 0.0
+                    
+                    for i in range(0, coords.size(0), batch_size):
+                        indices = permutation[i:i+batch_size]
+                        batch_coords = coords[indices]
+                        batch_targets = img_target_flat[indices]
+                        
+                        optimizer.zero_grad()
+                        pred = model(batch_coords)
+                        loss = criterion(pred, batch_targets)
+                        loss.backward()
+                        optimizer.step()
+                        
+                        epoch_loss += loss.item() * len(indices)
+                        
+                    epoch_loss /= coords.size(0)
+                    trial_losses.append(epoch_loss)
+                    
+                    # Update progress bar stats
+                    psnr = -10.0 * np.log10(epoch_loss) if epoch_loss > 0 else float('inf')
+                    pbar.set_postfix(loss=f"{epoch_loss:.6f}", psnr=f"{psnr:.2f}dB")
+                    
+                # Save loss history
+                group.create_dataset(f"trial_{t}", data=np.array(trial_losses, dtype=np.float32))
+                
+                # Generate final reconstruction
+                with torch.no_grad():
+                    preds = []
+                    for i in range(0, coords.size(0), batch_size):
+                        preds.append(model(coords[i:i+batch_size]))
+                    pred_img = torch.cat(preds, dim=0).view(H, W, C)
+                    pred_img = pred_img.float().clamp(0.0, 1.0).cpu().numpy()
+                    
+                recon_img_np = (pred_img * 255.0).astype(np.uint8)
+                pil_img = Image.fromarray(recon_img_np)
+                pil_img.save(recon_dir / f"width_{w}_trial_{t}.png")
+                
+    print(f"\nDone! All experiments completed.")
+    print(f"  Loss histories saved in:  {loss_h5_path}")
+    print(f"  Reconstructions saved in: {recon_dir}/")
 
 if __name__ == '__main__':
     main()
