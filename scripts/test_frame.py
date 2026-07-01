@@ -50,6 +50,7 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     log_print(f"Training on device: {device}")
+    log_print(f"Command run: python {' '.join(sys.argv)}")
     
     # 1. Load both Frame 0 and SegNet mask 0 from H5 file
     h5_path = Path("data/frames.h5")
@@ -128,9 +129,28 @@ def main():
     loss_history = []
     acc_history = []
     
-    log_print(f"Starting SegNet fitting: epochs={args.epochs}, batch_size={args.batch_size}, lr={args.lr}")
-    log_print(f"Model: hidden_features={args.hidden_features}, hidden_layers={args.hidden_layers}, complex_weights={args.complex_weights}")
-    log_print(f"Gabor parameters: omega0={args.omega0}, s0={args.s0}, use_scheduler={args.use_scheduler}")
+    log_print("=== Experiment Configuration ===")
+    log_print(f"Model Architecture:")
+    log_print(f"  - Model Type: WIRE")
+    log_print(f"  - in_features: 2 (2D coordinates)")
+    log_print(f"  - out_features: 5 (5-class SegNet logits)")
+    log_print(f"  - hidden_features: {args.hidden_features}")
+    log_print(f"  - hidden_layers: {args.hidden_layers}")
+    log_print(f"  - complex_weights: {args.complex_weights}")
+    log_print(f"  - init_type: siren")
+    log_print(f"Gabor Parameters:")
+    log_print(f"  - omega0: {args.omega0}")
+    log_print(f"  - s0: {args.s0}")
+    log_print(f"Training Settings:")
+    log_print(f"  - epochs: {args.epochs}")
+    log_print(f"  - batch_size: {args.batch_size}")
+    log_print(f"  - learning_rate: {args.lr}")
+    log_print(f"  - optimizer: Adam")
+    log_print(f"  - criterion: CrossEntropyLoss")
+    log_print(f"  - use_scheduler: {args.use_scheduler}")
+    if args.use_scheduler:
+        log_print(f"  - scheduler: CosineAnnealingLR (T_max={args.epochs})")
+    log_print("=================================\n")
     
     pbar = tqdm(range(1, args.epochs + 1), desc="Fitting SegNet Mask")
     for epoch in pbar:
