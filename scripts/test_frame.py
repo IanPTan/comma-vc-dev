@@ -152,7 +152,7 @@ def main():
                 pred_seg_pil = Image.fromarray(pred_seg_color)
                 
                 # B. Raw logits RGB representation (sigmoid of the first 3 logits)
-                logits_rgb = torch.sigmoid(pred_all[..., :3]).cpu().numpy()
+                logits_rgb = torch.sigmoid(pred_all[..., :3]).float().cpu().numpy()
                 logits_rgb_np = (logits_rgb * 255.0).astype(np.uint8)
                 logits_pil = Image.fromarray(logits_rgb_np)
                 
