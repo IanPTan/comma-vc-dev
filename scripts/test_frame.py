@@ -32,7 +32,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Training on device: {device}")
     
-    # 1. Load SegNet mask 0 from H5 file
+    # 1. Load both Frame 0 and SegNet mask 0 from H5 file
     h5_path = Path("data/frames.h5")
     if not h5_path.exists():
         h5_path = Path("data/frames_test.h5")
@@ -40,13 +40,13 @@ def main():
         print("Error: Could not find data/frames.h5 or data/frames_test.h5")
         sys.exit(1)
         
-    print(f"Loading SegNet mask 0 from {h5_path}...")
+    print(f"Loading data from {h5_path}...")
     with h5py.File(h5_path, 'r') as f:
-        # Frame 0 is even, so its SegNet output is at index 0 of 'seg'
+        frame = f['frames'][0]  # shape (H, W, 3), uint8
         seg_mask = f['seg'][0]  # shape (H, W), uint8
         
-    H, W = seg_mask.shape
-    print(f"Mask dimensions: {W}x{H}")
+    H, W, C = frame.shape
+    print(f"Dimensions: {W}x{H} with {C} channels")
     
     # Move target mask to device
     target_mask = torch.from_numpy(seg_mask).to(device)
@@ -72,9 +72,19 @@ def main():
     experiments_dir.mkdir(parents=True, exist_ok=True)
     recon_dir.mkdir(parents=True, exist_ok=True)
     
-    # Save original colorized mask as 0000.png
-    orig_color = colorize_mask(seg_mask)
-    Image.fromarray(orig_color).save(recon_dir / "0000.png")
+    # Prepare standard reference images
+    orig_rgb_pil = Image.fromarray(frame)
+    orig_seg_pil = Image.fromarray(colorize_mask(seg_mask))
+    
+    # Save target reference side-by-side as 0000.png
+    # Layout: [Original RGB] | [Original SegNet] | [Original SegNet] | [Black Image]
+    black_img = Image.new('RGB', (W, H))
+    combined_ref = Image.new('RGB', (4 * W, H))
+    combined_ref.paste(orig_rgb_pil, (0, 0))
+    combined_ref.paste(orig_seg_pil, (W, 0))
+    combined_ref.paste(orig_seg_pil, (2 * W, 0))
+    combined_ref.paste(black_img, (3 * W, 0))
+    combined_ref.save(recon_dir / "0000.png")
     
     # 4. Instantiate WIRE model (5 output channels for the 5 classes)
     model = WIRE(
@@ -128,18 +138,31 @@ def main():
         # Update progress stats
         pbar.set_postfix(loss=f"{epoch_loss:.4f}", acc=f"{epoch_acc*100:.2f}%")
         
-        # Capture and save reconstruction at reported intervals
+        # Capture and save side-by-side reconstruction at reported intervals
         if epoch == 1 or epoch % report_interval == 0:
             with torch.no_grad():
                 preds = []
                 for i in range(0, coords.size(0), batch_size):
                     preds.append(model(coords[i:i+batch_size]))
                 pred_all = torch.cat(preds, dim=0).view(H, W, 5)
-                # Take the class argmax and move to CPU
-                pred_mask = pred_all.argmax(dim=-1).cpu().numpy().astype(np.uint8)
                 
-            pred_color = colorize_mask(pred_mask)
-            Image.fromarray(pred_color).save(recon_dir / f"{epoch:04d}.png")
+                # A. Argmax Predicted Mask
+                pred_mask = pred_all.argmax(dim=-1).cpu().numpy().astype(np.uint8)
+                pred_seg_color = colorize_mask(pred_mask)
+                pred_seg_pil = Image.fromarray(pred_seg_color)
+                
+                # B. Raw logits RGB representation (sigmoid of the first 3 logits)
+                logits_rgb = torch.sigmoid(pred_all[..., :3]).cpu().numpy()
+                logits_rgb_np = (logits_rgb * 255.0).astype(np.uint8)
+                logits_pil = Image.fromarray(logits_rgb_np)
+                
+            # Layout: [Original RGB] | [Original SegNet] | [Predicted SegNet] | [Raw Logits RGB]
+            combined_img = Image.new('RGB', (4 * W, H))
+            combined_img.paste(orig_rgb_pil, (0, 0))
+            combined_img.paste(orig_seg_pil, (W, 0))
+            combined_img.paste(pred_seg_pil, (2 * W, 0))
+            combined_img.paste(logits_pil, (3 * W, 0))
+            combined_img.save(recon_dir / f"{epoch:04d}.png")
             
     # 5. Save the trained model weights
     model_path = experiments_dir / "frame0.pt"
@@ -158,7 +181,6 @@ def main():
     
     print(f"\nDone! SegNet fitting completed.")
     print(f"  Model weights saved to:     {model_path}")
-    # Show the final accuracy
     print(f"  Final training accuracy:    {epoch_acc*100:.2f}%")
     print(f"  Loss plot saved to:         {experiments_dir}/loss.png")
     print(f"  Reconstructed masks saved:  {recon_dir}/")
