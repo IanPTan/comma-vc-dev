@@ -1,3 +1,4 @@
+import argparse
 import h5py
 import torch
 import torch.nn as nn
@@ -29,24 +30,42 @@ def colorize_mask(mask_2d):
     return COLOR_MAP[mask_2d]
 
 def main():
+    parser = argparse.ArgumentParser(description="Overfit WIRE model to SegNet mask of frame 0.")
+    parser.add_argument("--epochs", type=int, default=1000, help="Number of training epochs")
+    parser.add_argument("--batch_size", type=int, default=196608, help="Batch size for training (default 196608 for full-batch)")
+    parser.add_argument("--lr", type=float, default=5e-3, help="Learning rate")
+    parser.add_argument("--omega0", type=float, default=20.0, help="Gabor frequency omega0")
+    parser.add_argument("--s0", type=float, default=10.0, help="Gabor scaling s0")
+    parser.add_argument("--hidden_features", type=int, default=256, help="Width of hidden layers")
+    parser.add_argument("--hidden_layers", type=int, default=3, help="Number of layers (depth)")
+    parser.add_argument("--complex_weights", action="store_true", help="Use complex weights instead of real weights")
+    parser.add_argument("--use_scheduler", action="store_true", help="Use CosineAnnealingLR scheduler to stabilize training")
+    args = parser.parse_args()
+
+    # Logger setup
+    log_lines = []
+    def log_print(msg):
+        print(msg)
+        log_lines.append(msg)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Training on device: {device}")
+    log_print(f"Training on device: {device}")
     
     # 1. Load both Frame 0 and SegNet mask 0 from H5 file
     h5_path = Path("data/frames.h5")
     if not h5_path.exists():
         h5_path = Path("data/frames_test.h5")
     if not h5_path.exists():
-        print("Error: Could not find data/frames.h5 or data/frames_test.h5")
+        log_print("Error: Could not find data/frames.h5 or data/frames_test.h5")
         sys.exit(1)
         
-    print(f"Loading data from {h5_path}...")
+    log_print(f"Loading data from {h5_path}...")
     with h5py.File(h5_path, 'r') as f:
         frame = f['frames'][0]  # shape (H, W, 3), uint8
         seg_mask = f['seg'][0]  # shape (H, W), uint8
         
     H, W, C = frame.shape
-    print(f"Dimensions: {W}x{H} with {C} channels")
+    log_print(f"Dimensions: {W}x{H} with {C} channels")
     
     # Move target mask to device
     target_mask = torch.from_numpy(seg_mask).to(device)
@@ -86,38 +105,41 @@ def main():
     combined_ref.paste(black_img, (3 * W, 0))
     combined_ref.save(recon_dir / "0000.png")
     
-    # 4. Instantiate WIRE model (5 output channels for the 5 classes)
+    # 4. Instantiate WIRE model
     model = WIRE(
         in_features=2,
         out_features=5,
-        hidden_features=256,
-        hidden_layers=3,
-        omega0=20.0,
-        s0=10.0,
-        complex_weights=False,
+        hidden_features=args.hidden_features,
+        hidden_layers=args.hidden_layers,
+        omega0=args.omega0,
+        s0=args.s0,
+        complex_weights=args.complex_weights,
         init_type='siren'
     ).to(device)
+    
     model = model.bfloat16()
     
-    optimizer = optim.Adam(model.parameters(), lr=5e-3)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr)
     criterion = nn.CrossEntropyLoss()
     
-    epochs = 1000
-    batch_size = 131072
+    if args.use_scheduler:
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
     
     loss_history = []
     acc_history = []
     
-    print(f"Starting SegNet fitting: epochs={epochs}, batch_size={batch_size} (saving at powers of 2)")
+    log_print(f"Starting SegNet fitting: epochs={args.epochs}, batch_size={args.batch_size}, lr={args.lr}")
+    log_print(f"Model: hidden_features={args.hidden_features}, hidden_layers={args.hidden_layers}, complex_weights={args.complex_weights}")
+    log_print(f"Gabor parameters: omega0={args.omega0}, s0={args.s0}, use_scheduler={args.use_scheduler}")
     
-    pbar = tqdm(range(1, epochs + 1), desc="Fitting SegNet Mask")
+    pbar = tqdm(range(1, args.epochs + 1), desc="Fitting SegNet Mask")
     for epoch in pbar:
         permutation = torch.randperm(coords.size(0))
         epoch_loss = 0.0
         epoch_correct = 0
         
-        for i in range(0, coords.size(0), batch_size):
-            indices = permutation[i:i+batch_size]
+        for i in range(0, coords.size(0), args.batch_size):
+            indices = permutation[i:i+args.batch_size]
             batch_coords = coords[indices]
             batch_targets = target_flat[indices]
             
@@ -135,15 +157,18 @@ def main():
         loss_history.append(epoch_loss)
         acc_history.append(epoch_acc)
         
+        if args.use_scheduler:
+            scheduler.step()
+            
         # Update progress stats
         pbar.set_postfix(loss=f"{epoch_loss:.4f}", acc=f"{epoch_acc*100:.2f}%")
         
         # Capture and save side-by-side reconstruction at exponential intervals (powers of 2) or final epoch
-        if (epoch & (epoch - 1)) == 0 or epoch == epochs:
+        if (epoch & (epoch - 1)) == 0 or epoch == args.epochs:
             with torch.no_grad():
                 preds = []
-                for i in range(0, coords.size(0), batch_size):
-                    preds.append(model(coords[i:i+batch_size]))
+                for i in range(0, coords.size(0), args.batch_size):
+                    preds.append(model(coords[i:i+args.batch_size]))
                 pred_all = torch.cat(preds, dim=0).view(H, W, 5)
                 
                 # A. Argmax Predicted Mask
@@ -174,7 +199,7 @@ def main():
     color = 'tab:blue'
     ax1.set_xlabel('Epoch')
     ax1.set_ylabel('Cross Entropy Loss', color=color)
-    ax1.plot(range(1, epochs + 1), loss_history, color=color, label='Cross Entropy Loss')
+    ax1.plot(range(1, args.epochs + 1), loss_history, color=color, label='Cross Entropy Loss')
     ax1.tick_params(axis='y', labelcolor=color)
     ax1.grid(True)
     
@@ -182,7 +207,7 @@ def main():
     color = 'tab:orange'
     ax2.set_ylabel('SegNet Loss Term (100 * distortion)', color=color)
     seg_loss_history = [100.0 * (1.0 - acc) for acc in acc_history]
-    ax2.plot(range(1, epochs + 1), seg_loss_history, color=color, label='SegNet Loss Term')
+    ax2.plot(range(1, args.epochs + 1), seg_loss_history, color=color, label='SegNet Loss Term')
     ax2.tick_params(axis='y', labelcolor=color)
     
     plt.title('SegNet Mask Fitting Loss and Distortion')
@@ -190,12 +215,17 @@ def main():
     plt.savefig(experiments_dir / "loss.png")
     plt.close()
     
-    print(f"\nDone! SegNet fitting completed.")
-    print(f"  Model weights saved to:     {model_path}")
-    print(f"  Final training accuracy:    {epoch_acc*100:.2f}%")
-    print(f"  Resulting SegNet loss term (100 * distortion): {100.0 * (1.0 - epoch_acc):.4f}")
-    print(f"  Loss plot saved to:         {experiments_dir}/loss.png")
-    print(f"  Reconstructed masks saved:  {recon_dir}/")
+    log_print(f"\nDone! SegNet fitting completed.")
+    log_print(f"  Model weights saved to:     {model_path}")
+    log_print(f"  Final training accuracy:    {epoch_acc*100:.2f}%")
+    log_print(f"  Resulting SegNet loss term (100 * distortion): {100.0 * (1.0 - epoch_acc):.4f}")
+    log_print(f"  Loss plot saved to:         {experiments_dir}/loss.png")
+    log_print(f"  Reconstructed masks saved:  {recon_dir}/")
+
+    # Save all accumulated log prints to report.txt
+    report_path = experiments_dir / "report.txt"
+    with open(report_path, "w") as rf:
+        rf.write("\n".join(log_lines) + "\n")
 
 if __name__ == '__main__':
     main()
