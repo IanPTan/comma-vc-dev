@@ -5,6 +5,7 @@ import torch.optim as optim
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 from pathlib import Path
 import sys
 
@@ -14,11 +15,24 @@ sys.path.insert(0, str(project_root))
 
 from model import WIRE
 
+# Define a color map for the 5 SegNet classes
+COLOR_MAP = np.array([
+    [0, 0, 0],        # Class 0: Black
+    [255, 0, 0],      # Class 1: Red
+    [0, 255, 0],      # Class 2: Green
+    [0, 0, 255],      # Class 3: Blue
+    [255, 255, 0]     # Class 4: Yellow
+], dtype=np.uint8)
+
+def colorize_mask(mask_2d):
+    """Converts a 2D class integer mask to an RGB image."""
+    return COLOR_MAP[mask_2d]
+
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Training on device: {device}")
     
-    # 1. Load frame 0 from H5 file
+    # 1. Load SegNet mask 0 from H5 file
     h5_path = Path("data/frames.h5")
     if not h5_path.exists():
         h5_path = Path("data/frames_test.h5")
@@ -26,16 +40,17 @@ def main():
         print("Error: Could not find data/frames.h5 or data/frames_test.h5")
         sys.exit(1)
         
-    print(f"Loading frame 0 from {h5_path}...")
+    print(f"Loading SegNet mask 0 from {h5_path}...")
     with h5py.File(h5_path, 'r') as f:
-        frame = f['frames'][0]  # shape (H, W, 3), uint8
+        # Frame 0 is even, so its SegNet output is at index 0 of 'seg'
+        seg_mask = f['seg'][0]  # shape (H, W), uint8
         
-    H, W, C = frame.shape
-    print(f"Frame 0 dimensions: {W}x{H} with {C} channels")
+    H, W = seg_mask.shape
+    print(f"Mask dimensions: {W}x{H}")
     
-    # Normalize image to [0, 1] and move to device
-    img_target = torch.from_numpy(frame).float().to(device) / 255.0
-    img_target_flat = img_target.view(-1, C)  # (H*W, 3)
+    # Move target mask to device
+    target_mask = torch.from_numpy(seg_mask).to(device)
+    target_flat = target_mask.view(-1).long()  # (H*W,) long integers for cross-entropy
     
     # 2. Generate normalized 2D coordinate grid [-1, 1]
     y_coords = torch.linspace(-1, 1, steps=H, device=device)
@@ -43,10 +58,8 @@ def main():
     grid_y, grid_x = torch.meshgrid(y_coords, x_coords, indexing='ij')
     coords = torch.stack([grid_y, grid_x], dim=-1).view(-1, 2)  # (H*W, 2)
     
-    # Cast input coordinates and targets to bfloat16
-    print("Converting inputs to bfloat16...")
+    # Cast coordinates to bfloat16
     coords = coords.bfloat16()
-    img_target_flat = img_target_flat.bfloat16()
     
     # 3. Setup experiment directories
     experiments_dir = Path("experiments/frame0_test")
@@ -59,87 +72,96 @@ def main():
     experiments_dir.mkdir(parents=True, exist_ok=True)
     recon_dir.mkdir(parents=True, exist_ok=True)
     
-    # Save original image
-    Image.fromarray(frame).save(recon_dir / "original.png")
+    # Save original colorized mask as 0000.png
+    orig_color = colorize_mask(seg_mask)
+    Image.fromarray(orig_color).save(recon_dir / "0000.png")
     
-    # 4. Run parameter-sweeping experiments
-    widths = [8, 16, 32, 64, 128, 256, 512]
-    num_trials = 10
+    # 4. Instantiate WIRE model (5 output channels for the 5 classes)
+    model = WIRE(
+        in_features=2,
+        out_features=5,
+        hidden_features=256,
+        hidden_layers=3,
+        omega0=20.0,
+        s0=10.0,
+        complex_weights=False,
+        init_type='siren'
+    ).to(device)
+    
+    model = model.bfloat16()
+    
+    optimizer = optim.Adam(model.parameters(), lr=5e-3)
+    criterion = nn.CrossEntropyLoss()
+    
     epochs = 100
     batch_size = 131072
+    report_interval = 10
     
-    loss_h5_path = experiments_dir / "loss.h5"
-    print(f"Starting sweeps: widths={widths}, trials={num_trials}, epochs={epochs}")
+    loss_history = []
     
-    with h5py.File(loss_h5_path, 'w') as h5_file:
-        for w in widths:
-            group = h5_file.create_group(f"width_{w}")
-            print(f"\n--- Width {w} ---")
+    print(f"Starting SegNet fitting: epochs={epochs}, batch_size={batch_size}, report_interval={report_interval}")
+    
+    pbar = tqdm(range(1, epochs + 1), desc="Fitting SegNet Mask")
+    for epoch in pbar:
+        permutation = torch.randperm(coords.size(0))
+        epoch_loss = 0.0
+        epoch_correct = 0
+        
+        for i in range(0, coords.size(0), batch_size):
+            indices = permutation[i:i+batch_size]
+            batch_coords = coords[indices]
+            batch_targets = target_flat[indices]
             
-            for t in range(num_trials):
-                # Instantiate real-valued WIRE model
-                model = WIRE(
-                    in_features=2,
-                    out_features=3,
-                    hidden_features=w,
-                    hidden_layers=3,
-                    omega0=20.0,
-                    s0=10.0,
-                    complex_weights=False,
-                    init_type='siren'
-                ).to(device)
+            optimizer.zero_grad()
+            pred = model(batch_coords)  # (batch_size, 5)
+            loss = criterion(pred, batch_targets)
+            loss.backward()
+            optimizer.step()
+            
+            epoch_loss += loss.item() * len(indices)
+            epoch_correct += (pred.argmax(dim=-1) == batch_targets).sum().item()
+            
+        epoch_loss /= coords.size(0)
+        epoch_acc = epoch_correct / coords.size(0)
+        loss_history.append(epoch_loss)
+        
+        # Update progress stats
+        pbar.set_postfix(loss=f"{epoch_loss:.4f}", acc=f"{epoch_acc*100:.2f}%")
+        
+        # Capture and save reconstruction at reported intervals
+        if epoch == 1 or epoch % report_interval == 0:
+            with torch.no_grad():
+                preds = []
+                for i in range(0, coords.size(0), batch_size):
+                    preds.append(model(coords[i:i+batch_size]))
+                pred_all = torch.cat(preds, dim=0).view(H, W, 5)
+                # Take the class argmax and move to CPU
+                pred_mask = pred_all.argmax(dim=-1).cpu().numpy().astype(np.uint8)
                 
-                model = model.bfloat16()
-                
-                optimizer = optim.Adam(model.parameters(), lr=5e-3)
-                criterion = nn.MSELoss()
-                
-                trial_losses = []
-                
-                # Wrap epoch range in tqdm progress bar
-                pbar = tqdm(range(1, epochs + 1), desc=f"Width {w:3d} | Trial {t:2d}", leave=True)
-                for epoch in pbar:
-                    permutation = torch.randperm(coords.size(0))
-                    epoch_loss = 0.0
-                    
-                    for i in range(0, coords.size(0), batch_size):
-                        indices = permutation[i:i+batch_size]
-                        batch_coords = coords[indices]
-                        batch_targets = img_target_flat[indices]
-                        
-                        optimizer.zero_grad()
-                        pred = model(batch_coords)
-                        loss = criterion(pred, batch_targets)
-                        loss.backward()
-                        optimizer.step()
-                        
-                        epoch_loss += loss.item() * len(indices)
-                        
-                    epoch_loss /= coords.size(0)
-                    trial_losses.append(epoch_loss)
-                    
-                    # Update progress bar stats
-                    psnr = -10.0 * np.log10(epoch_loss) if epoch_loss > 0 else float('inf')
-                    pbar.set_postfix(loss=f"{epoch_loss:.6f}", psnr=f"{psnr:.2f}dB")
-                    
-                # Save loss history
-                group.create_dataset(f"trial_{t}", data=np.array(trial_losses, dtype=np.float32))
-                
-                # Generate final reconstruction
-                with torch.no_grad():
-                    preds = []
-                    for i in range(0, coords.size(0), batch_size):
-                        preds.append(model(coords[i:i+batch_size]))
-                    pred_img = torch.cat(preds, dim=0).view(H, W, C)
-                    pred_img = pred_img.float().clamp(0.0, 1.0).cpu().numpy()
-                    
-                recon_img_np = (pred_img * 255.0).astype(np.uint8)
-                pil_img = Image.fromarray(recon_img_np)
-                pil_img.save(recon_dir / f"width_{w}_trial_{t}.png")
-                
-    print(f"\nDone! All experiments completed.")
-    print(f"  Loss histories saved in:  {loss_h5_path}")
-    print(f"  Reconstructions saved in: {recon_dir}/")
+            pred_color = colorize_mask(pred_mask)
+            Image.fromarray(pred_color).save(recon_dir / f"{epoch:04d}.png")
+            
+    # 5. Save the trained model weights
+    model_path = experiments_dir / "frame0.pt"
+    torch.save(model.state_dict(), model_path)
+    
+    # Plot and save the loss graph
+    plt.figure(figsize=(10, 5))
+    plt.plot(range(1, epochs + 1), loss_history, label='Cross Entropy Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('SegNet Mask Fitting Loss')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(experiments_dir / "loss.png")
+    plt.close()
+    
+    print(f"\nDone! SegNet fitting completed.")
+    print(f"  Model weights saved to:     {model_path}")
+    # Show the final accuracy
+    print(f"  Final training accuracy:    {epoch_acc*100:.2f}%")
+    print(f"  Loss plot saved to:         {experiments_dir}/loss.png")
+    print(f"  Reconstructed masks saved:  {recon_dir}/")
 
 if __name__ == '__main__':
     main()
