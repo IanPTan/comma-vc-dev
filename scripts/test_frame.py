@@ -102,14 +102,13 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=5e-3)
     criterion = nn.CrossEntropyLoss()
     
-    epochs = 100
+    epochs = 1000
     batch_size = 131072
-    report_interval = 10
     
     loss_history = []
     acc_history = []
     
-    print(f"Starting SegNet fitting: epochs={epochs}, batch_size={batch_size}, report_interval={report_interval}")
+    print(f"Starting SegNet fitting: epochs={epochs}, batch_size={batch_size} (saving at powers of 2)")
     
     pbar = tqdm(range(1, epochs + 1), desc="Fitting SegNet Mask")
     for epoch in pbar:
@@ -139,8 +138,8 @@ def main():
         # Update progress stats
         pbar.set_postfix(loss=f"{epoch_loss:.4f}", acc=f"{epoch_acc*100:.2f}%")
         
-        # Capture and save side-by-side reconstruction at reported intervals
-        if epoch == 1 or epoch % report_interval == 0:
+        # Capture and save side-by-side reconstruction at exponential intervals (powers of 2) or final epoch
+        if (epoch & (epoch - 1)) == 0 or epoch == epochs:
             with torch.no_grad():
                 preds = []
                 for i in range(0, coords.size(0), batch_size):
