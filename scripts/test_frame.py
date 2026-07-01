@@ -59,6 +59,12 @@ def main():
     # Create experiments directory structure
     experiments_dir = Path("experiments/frame0_test")
     recon_dir = experiments_dir / "recon"
+    
+    # Wipe the directory if it exists to avoid mixing files from old runs
+    if experiments_dir.exists():
+        import shutil
+        shutil.rmtree(experiments_dir)
+        
     experiments_dir.mkdir(parents=True, exist_ok=True)
     recon_dir.mkdir(parents=True, exist_ok=True)
     
@@ -76,9 +82,9 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=5e-3)
     criterion = nn.MSELoss()
     
-    epochs = 1000
+    epochs = 100
     batch_size = 131072
-    report_interval = 100
+    report_interval = 10
     print(f"Overfitting to frame 0 for {epochs} epochs (batch size: {batch_size}, report interval: {report_interval})...")
     
     loss_history = []
