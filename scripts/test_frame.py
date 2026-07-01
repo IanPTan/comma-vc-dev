@@ -97,7 +97,6 @@ def main():
         complex_weights=False,
         init_type='siren'
     ).to(device)
-    
     model = model.bfloat16()
     
     optimizer = optim.Adam(model.parameters(), lr=5e-3)
