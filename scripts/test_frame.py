@@ -108,6 +108,7 @@ def main():
     report_interval = 10
     
     loss_history = []
+    acc_history = []
     
     print(f"Starting SegNet fitting: epochs={epochs}, batch_size={batch_size}, report_interval={report_interval}")
     
@@ -134,6 +135,7 @@ def main():
         epoch_loss /= coords.size(0)
         epoch_acc = epoch_correct / coords.size(0)
         loss_history.append(epoch_loss)
+        acc_history.append(epoch_acc)
         
         # Update progress stats
         pbar.set_postfix(loss=f"{epoch_loss:.4f}", acc=f"{epoch_acc*100:.2f}%")
@@ -168,20 +170,32 @@ def main():
     model_path = experiments_dir / "frame0.pt"
     torch.save(model.state_dict(), model_path)
     
-    # Plot and save the loss graph
-    plt.figure(figsize=(10, 5))
-    plt.plot(range(1, epochs + 1), loss_history, label='Cross Entropy Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.title('SegNet Mask Fitting Loss')
-    plt.legend()
-    plt.grid(True)
+    # Plot and save the loss graph with dual y-axes
+    fig, ax1 = plt.subplots(figsize=(10, 5))
+    
+    color = 'tab:blue'
+    ax1.set_xlabel('Epoch')
+    ax1.set_ylabel('Cross Entropy Loss', color=color)
+    ax1.plot(range(1, epochs + 1), loss_history, color=color, label='Cross Entropy Loss')
+    ax1.tick_params(axis='y', labelcolor=color)
+    ax1.grid(True)
+    
+    ax2 = ax1.twinx()  # second axes sharing the same x-axis
+    color = 'tab:orange'
+    ax2.set_ylabel('SegNet Loss Term (100 * distortion)', color=color)
+    seg_loss_history = [100.0 * (1.0 - acc) for acc in acc_history]
+    ax2.plot(range(1, epochs + 1), seg_loss_history, color=color, label='SegNet Loss Term')
+    ax2.tick_params(axis='y', labelcolor=color)
+    
+    plt.title('SegNet Mask Fitting Loss and Distortion')
+    fig.tight_layout()
     plt.savefig(experiments_dir / "loss.png")
     plt.close()
     
     print(f"\nDone! SegNet fitting completed.")
     print(f"  Model weights saved to:     {model_path}")
     print(f"  Final training accuracy:    {epoch_acc*100:.2f}%")
+    print(f"  Resulting SegNet loss term (100 * distortion): {100.0 * (1.0 - epoch_acc):.4f}")
     print(f"  Loss plot saved to:         {experiments_dir}/loss.png")
     print(f"  Reconstructed masks saved:  {recon_dir}/")
 
