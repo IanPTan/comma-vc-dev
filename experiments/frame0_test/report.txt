@@ -1,0 +1,2590 @@
+=== TRIAL 0 REPORT ===
+=== Trial 0 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 8
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_0/frame0.pt
+  Final training accuracy:    98.73%
+  Resulting SegNet loss term (100 * distortion): 1.2680
+  Loss plot saved to:         experiments/frame0_test/trial_0/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_0/recon/
+  History npz saved to:       experiments/frame0_test/trial_0/history.npz
+
+
+========================================
+
+=== TRIAL 1 REPORT ===
+=== Trial 1 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 8
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_1/frame0.pt
+  Final training accuracy:    97.67%
+  Resulting SegNet loss term (100 * distortion): 2.3315
+  Loss plot saved to:         experiments/frame0_test/trial_1/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_1/recon/
+  History npz saved to:       experiments/frame0_test/trial_1/history.npz
+
+
+========================================
+
+=== TRIAL 2 REPORT ===
+=== Trial 2 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 8
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_2/frame0.pt
+  Final training accuracy:    98.69%
+  Resulting SegNet loss term (100 * distortion): 1.3123
+  Loss plot saved to:         experiments/frame0_test/trial_2/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_2/recon/
+  History npz saved to:       experiments/frame0_test/trial_2/history.npz
+
+
+========================================
+
+=== TRIAL 3 REPORT ===
+=== Trial 3 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 8
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_3/frame0.pt
+  Final training accuracy:    98.77%
+  Resulting SegNet loss term (100 * distortion): 1.2339
+  Loss plot saved to:         experiments/frame0_test/trial_3/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_3/recon/
+  History npz saved to:       experiments/frame0_test/trial_3/history.npz
+
+
+========================================
+
+=== TRIAL 4 REPORT ===
+=== Trial 4 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 8
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_4/frame0.pt
+  Final training accuracy:    98.87%
+  Resulting SegNet loss term (100 * distortion): 1.1322
+  Loss plot saved to:         experiments/frame0_test/trial_4/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_4/recon/
+  History npz saved to:       experiments/frame0_test/trial_4/history.npz
+
+
+========================================
+
+=== TRIAL 5 REPORT ===
+=== Trial 5 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 8
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_5/frame0.pt
+  Final training accuracy:    98.70%
+  Resulting SegNet loss term (100 * distortion): 1.2960
+  Loss plot saved to:         experiments/frame0_test/trial_5/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_5/recon/
+  History npz saved to:       experiments/frame0_test/trial_5/history.npz
+
+
+========================================
+
+=== TRIAL 6 REPORT ===
+=== Trial 6 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 8
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_6/frame0.pt
+  Final training accuracy:    96.51%
+  Resulting SegNet loss term (100 * distortion): 3.4892
+  Loss plot saved to:         experiments/frame0_test/trial_6/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_6/recon/
+  History npz saved to:       experiments/frame0_test/trial_6/history.npz
+
+
+========================================
+
+=== TRIAL 7 REPORT ===
+=== Trial 7 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 8
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_7/frame0.pt
+  Final training accuracy:    97.96%
+  Resulting SegNet loss term (100 * distortion): 2.0406
+  Loss plot saved to:         experiments/frame0_test/trial_7/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_7/recon/
+  History npz saved to:       experiments/frame0_test/trial_7/history.npz
+
+
+========================================
+
+=== TRIAL 8 REPORT ===
+=== Trial 8 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 8
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_8/frame0.pt
+  Final training accuracy:    98.41%
+  Resulting SegNet loss term (100 * distortion): 1.5905
+  Loss plot saved to:         experiments/frame0_test/trial_8/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_8/recon/
+  History npz saved to:       experiments/frame0_test/trial_8/history.npz
+
+
+========================================
+
+=== TRIAL 9 REPORT ===
+=== Trial 9 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 8
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_9/frame0.pt
+  Final training accuracy:    98.67%
+  Resulting SegNet loss term (100 * distortion): 1.3306
+  Loss plot saved to:         experiments/frame0_test/trial_9/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_9/recon/
+  History npz saved to:       experiments/frame0_test/trial_9/history.npz
+
+
+========================================
+
+=== TRIAL 10 REPORT ===
+=== Trial 10 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 16
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_10/frame0.pt
+  Final training accuracy:    99.22%
+  Resulting SegNet loss term (100 * distortion): 0.7802
+  Loss plot saved to:         experiments/frame0_test/trial_10/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_10/recon/
+  History npz saved to:       experiments/frame0_test/trial_10/history.npz
+
+
+========================================
+
+=== TRIAL 11 REPORT ===
+=== Trial 11 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 16
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_11/frame0.pt
+  Final training accuracy:    99.25%
+  Resulting SegNet loss term (100 * distortion): 0.7507
+  Loss plot saved to:         experiments/frame0_test/trial_11/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_11/recon/
+  History npz saved to:       experiments/frame0_test/trial_11/history.npz
+
+
+========================================
+
+=== TRIAL 12 REPORT ===
+=== Trial 12 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 16
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_12/frame0.pt
+  Final training accuracy:    99.14%
+  Resulting SegNet loss term (100 * distortion): 0.8565
+  Loss plot saved to:         experiments/frame0_test/trial_12/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_12/recon/
+  History npz saved to:       experiments/frame0_test/trial_12/history.npz
+
+
+========================================
+
+=== TRIAL 13 REPORT ===
+=== Trial 13 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 16
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_13/frame0.pt
+  Final training accuracy:    99.33%
+  Resulting SegNet loss term (100 * distortion): 0.6678
+  Loss plot saved to:         experiments/frame0_test/trial_13/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_13/recon/
+  History npz saved to:       experiments/frame0_test/trial_13/history.npz
+
+
+========================================
+
+=== TRIAL 14 REPORT ===
+=== Trial 14 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 16
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_14/frame0.pt
+  Final training accuracy:    99.14%
+  Resulting SegNet loss term (100 * distortion): 0.8570
+  Loss plot saved to:         experiments/frame0_test/trial_14/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_14/recon/
+  History npz saved to:       experiments/frame0_test/trial_14/history.npz
+
+
+========================================
+
+=== TRIAL 15 REPORT ===
+=== Trial 15 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 16
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_15/frame0.pt
+  Final training accuracy:    99.16%
+  Resulting SegNet loss term (100 * distortion): 0.8357
+  Loss plot saved to:         experiments/frame0_test/trial_15/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_15/recon/
+  History npz saved to:       experiments/frame0_test/trial_15/history.npz
+
+
+========================================
+
+=== TRIAL 16 REPORT ===
+=== Trial 16 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 16
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_16/frame0.pt
+  Final training accuracy:    99.16%
+  Resulting SegNet loss term (100 * distortion): 0.8408
+  Loss plot saved to:         experiments/frame0_test/trial_16/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_16/recon/
+  History npz saved to:       experiments/frame0_test/trial_16/history.npz
+
+
+========================================
+
+=== TRIAL 17 REPORT ===
+=== Trial 17 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 16
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_17/frame0.pt
+  Final training accuracy:    99.12%
+  Resulting SegNet loss term (100 * distortion): 0.8830
+  Loss plot saved to:         experiments/frame0_test/trial_17/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_17/recon/
+  History npz saved to:       experiments/frame0_test/trial_17/history.npz
+
+
+========================================
+
+=== TRIAL 18 REPORT ===
+=== Trial 18 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 16
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_18/frame0.pt
+  Final training accuracy:    99.13%
+  Resulting SegNet loss term (100 * distortion): 0.8677
+  Loss plot saved to:         experiments/frame0_test/trial_18/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_18/recon/
+  History npz saved to:       experiments/frame0_test/trial_18/history.npz
+
+
+========================================
+
+=== TRIAL 19 REPORT ===
+=== Trial 19 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 16
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_19/frame0.pt
+  Final training accuracy:    99.21%
+  Resulting SegNet loss term (100 * distortion): 0.7904
+  Loss plot saved to:         experiments/frame0_test/trial_19/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_19/recon/
+  History npz saved to:       experiments/frame0_test/trial_19/history.npz
+
+
+========================================
+
+=== TRIAL 20 REPORT ===
+=== Trial 20 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 32
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_20/frame0.pt
+  Final training accuracy:    99.53%
+  Resulting SegNet loss term (100 * distortion): 0.4654
+  Loss plot saved to:         experiments/frame0_test/trial_20/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_20/recon/
+  History npz saved to:       experiments/frame0_test/trial_20/history.npz
+
+
+========================================
+
+=== TRIAL 21 REPORT ===
+=== Trial 21 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 32
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_21/frame0.pt
+  Final training accuracy:    99.76%
+  Resulting SegNet loss term (100 * distortion): 0.2396
+  Loss plot saved to:         experiments/frame0_test/trial_21/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_21/recon/
+  History npz saved to:       experiments/frame0_test/trial_21/history.npz
+
+
+========================================
+
+=== TRIAL 22 REPORT ===
+=== Trial 22 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 32
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_22/frame0.pt
+  Final training accuracy:    99.67%
+  Resulting SegNet loss term (100 * distortion): 0.3326
+  Loss plot saved to:         experiments/frame0_test/trial_22/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_22/recon/
+  History npz saved to:       experiments/frame0_test/trial_22/history.npz
+
+
+========================================
+
+=== TRIAL 23 REPORT ===
+=== Trial 23 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 32
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_23/frame0.pt
+  Final training accuracy:    99.66%
+  Resulting SegNet loss term (100 * distortion): 0.3357
+  Loss plot saved to:         experiments/frame0_test/trial_23/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_23/recon/
+  History npz saved to:       experiments/frame0_test/trial_23/history.npz
+
+
+========================================
+
+=== TRIAL 24 REPORT ===
+=== Trial 24 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 32
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_24/frame0.pt
+  Final training accuracy:    99.46%
+  Resulting SegNet loss term (100 * distortion): 0.5417
+  Loss plot saved to:         experiments/frame0_test/trial_24/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_24/recon/
+  History npz saved to:       experiments/frame0_test/trial_24/history.npz
+
+
+========================================
+
+=== TRIAL 25 REPORT ===
+=== Trial 25 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 32
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_25/frame0.pt
+  Final training accuracy:    99.60%
+  Resulting SegNet loss term (100 * distortion): 0.4049
+  Loss plot saved to:         experiments/frame0_test/trial_25/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_25/recon/
+  History npz saved to:       experiments/frame0_test/trial_25/history.npz
+
+
+========================================
+
+=== TRIAL 26 REPORT ===
+=== Trial 26 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 32
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_26/frame0.pt
+  Final training accuracy:    99.68%
+  Resulting SegNet loss term (100 * distortion): 0.3240
+  Loss plot saved to:         experiments/frame0_test/trial_26/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_26/recon/
+  History npz saved to:       experiments/frame0_test/trial_26/history.npz
+
+
+========================================
+
+=== TRIAL 27 REPORT ===
+=== Trial 27 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 32
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_27/frame0.pt
+  Final training accuracy:    99.60%
+  Resulting SegNet loss term (100 * distortion): 0.4033
+  Loss plot saved to:         experiments/frame0_test/trial_27/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_27/recon/
+  History npz saved to:       experiments/frame0_test/trial_27/history.npz
+
+
+========================================
+
+=== TRIAL 28 REPORT ===
+=== Trial 28 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 32
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_28/frame0.pt
+  Final training accuracy:    99.13%
+  Resulting SegNet loss term (100 * distortion): 0.8723
+  Loss plot saved to:         experiments/frame0_test/trial_28/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_28/recon/
+  History npz saved to:       experiments/frame0_test/trial_28/history.npz
+
+
+========================================
+
+=== TRIAL 29 REPORT ===
+=== Trial 29 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 32
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_29/frame0.pt
+  Final training accuracy:    99.62%
+  Resulting SegNet loss term (100 * distortion): 0.3835
+  Loss plot saved to:         experiments/frame0_test/trial_29/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_29/recon/
+  History npz saved to:       experiments/frame0_test/trial_29/history.npz
+
+
+========================================
+
+=== TRIAL 30 REPORT ===
+=== Trial 30 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 64
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_30/frame0.pt
+  Final training accuracy:    99.64%
+  Resulting SegNet loss term (100 * distortion): 0.3586
+  Loss plot saved to:         experiments/frame0_test/trial_30/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_30/recon/
+  History npz saved to:       experiments/frame0_test/trial_30/history.npz
+
+
+========================================
+
+=== TRIAL 31 REPORT ===
+=== Trial 31 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 64
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_31/frame0.pt
+  Final training accuracy:    99.82%
+  Resulting SegNet loss term (100 * distortion): 0.1780
+  Loss plot saved to:         experiments/frame0_test/trial_31/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_31/recon/
+  History npz saved to:       experiments/frame0_test/trial_31/history.npz
+
+
+========================================
+
+=== TRIAL 32 REPORT ===
+=== Trial 32 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 64
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_32/frame0.pt
+  Final training accuracy:    99.91%
+  Resulting SegNet loss term (100 * distortion): 0.0910
+  Loss plot saved to:         experiments/frame0_test/trial_32/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_32/recon/
+  History npz saved to:       experiments/frame0_test/trial_32/history.npz
+
+
+========================================
+
+=== TRIAL 33 REPORT ===
+=== Trial 33 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 64
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_33/frame0.pt
+  Final training accuracy:    99.90%
+  Resulting SegNet loss term (100 * distortion): 0.1038
+  Loss plot saved to:         experiments/frame0_test/trial_33/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_33/recon/
+  History npz saved to:       experiments/frame0_test/trial_33/history.npz
+
+
+========================================
+
+=== TRIAL 34 REPORT ===
+=== Trial 34 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 64
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_34/frame0.pt
+  Final training accuracy:    99.75%
+  Resulting SegNet loss term (100 * distortion): 0.2462
+  Loss plot saved to:         experiments/frame0_test/trial_34/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_34/recon/
+  History npz saved to:       experiments/frame0_test/trial_34/history.npz
+
+
+========================================
+
+=== TRIAL 35 REPORT ===
+=== Trial 35 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 64
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_35/frame0.pt
+  Final training accuracy:    99.90%
+  Resulting SegNet loss term (100 * distortion): 0.0992
+  Loss plot saved to:         experiments/frame0_test/trial_35/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_35/recon/
+  History npz saved to:       experiments/frame0_test/trial_35/history.npz
+
+
+========================================
+
+=== TRIAL 36 REPORT ===
+=== Trial 36 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 64
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_36/frame0.pt
+  Final training accuracy:    99.87%
+  Resulting SegNet loss term (100 * distortion): 0.1312
+  Loss plot saved to:         experiments/frame0_test/trial_36/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_36/recon/
+  History npz saved to:       experiments/frame0_test/trial_36/history.npz
+
+
+========================================
+
+=== TRIAL 37 REPORT ===
+=== Trial 37 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 64
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_37/frame0.pt
+  Final training accuracy:    99.62%
+  Resulting SegNet loss term (100 * distortion): 0.3835
+  Loss plot saved to:         experiments/frame0_test/trial_37/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_37/recon/
+  History npz saved to:       experiments/frame0_test/trial_37/history.npz
+
+
+========================================
+
+=== TRIAL 38 REPORT ===
+=== Trial 38 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 64
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_38/frame0.pt
+  Final training accuracy:    99.88%
+  Resulting SegNet loss term (100 * distortion): 0.1195
+  Loss plot saved to:         experiments/frame0_test/trial_38/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_38/recon/
+  History npz saved to:       experiments/frame0_test/trial_38/history.npz
+
+
+========================================
+
+=== TRIAL 39 REPORT ===
+=== Trial 39 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 64
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_39/frame0.pt
+  Final training accuracy:    99.90%
+  Resulting SegNet loss term (100 * distortion): 0.0961
+  Loss plot saved to:         experiments/frame0_test/trial_39/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_39/recon/
+  History npz saved to:       experiments/frame0_test/trial_39/history.npz
+
+
+========================================
+
+=== TRIAL 40 REPORT ===
+=== Trial 40 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 128
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_40/frame0.pt
+  Final training accuracy:    99.40%
+  Resulting SegNet loss term (100 * distortion): 0.6007
+  Loss plot saved to:         experiments/frame0_test/trial_40/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_40/recon/
+  History npz saved to:       experiments/frame0_test/trial_40/history.npz
+
+
+========================================
+
+=== TRIAL 41 REPORT ===
+=== Trial 41 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 128
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_41/frame0.pt
+  Final training accuracy:    99.99%
+  Resulting SegNet loss term (100 * distortion): 0.0132
+  Loss plot saved to:         experiments/frame0_test/trial_41/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_41/recon/
+  History npz saved to:       experiments/frame0_test/trial_41/history.npz
+
+
+========================================
+
+=== TRIAL 42 REPORT ===
+=== Trial 42 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 128
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_42/frame0.pt
+  Final training accuracy:    99.96%
+  Resulting SegNet loss term (100 * distortion): 0.0376
+  Loss plot saved to:         experiments/frame0_test/trial_42/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_42/recon/
+  History npz saved to:       experiments/frame0_test/trial_42/history.npz
+
+
+========================================
+
+=== TRIAL 43 REPORT ===
+=== Trial 43 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 128
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_43/frame0.pt
+  Final training accuracy:    99.98%
+  Resulting SegNet loss term (100 * distortion): 0.0214
+  Loss plot saved to:         experiments/frame0_test/trial_43/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_43/recon/
+  History npz saved to:       experiments/frame0_test/trial_43/history.npz
+
+
+========================================
+
+=== TRIAL 44 REPORT ===
+=== Trial 44 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 128
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_44/frame0.pt
+  Final training accuracy:    99.59%
+  Resulting SegNet loss term (100 * distortion): 0.4094
+  Loss plot saved to:         experiments/frame0_test/trial_44/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_44/recon/
+  History npz saved to:       experiments/frame0_test/trial_44/history.npz
+
+
+========================================
+
+=== TRIAL 45 REPORT ===
+=== Trial 45 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 128
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_45/frame0.pt
+  Final training accuracy:    99.97%
+  Resulting SegNet loss term (100 * distortion): 0.0310
+  Loss plot saved to:         experiments/frame0_test/trial_45/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_45/recon/
+  History npz saved to:       experiments/frame0_test/trial_45/history.npz
+
+
+========================================
+
+=== TRIAL 46 REPORT ===
+=== Trial 46 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 128
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_46/frame0.pt
+  Final training accuracy:    99.98%
+  Resulting SegNet loss term (100 * distortion): 0.0214
+  Loss plot saved to:         experiments/frame0_test/trial_46/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_46/recon/
+  History npz saved to:       experiments/frame0_test/trial_46/history.npz
+
+
+========================================
+
+=== TRIAL 47 REPORT ===
+=== Trial 47 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 128
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_47/frame0.pt
+  Final training accuracy:    99.98%
+  Resulting SegNet loss term (100 * distortion): 0.0209
+  Loss plot saved to:         experiments/frame0_test/trial_47/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_47/recon/
+  History npz saved to:       experiments/frame0_test/trial_47/history.npz
+
+
+========================================
+
+=== TRIAL 48 REPORT ===
+=== Trial 48 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 128
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_48/frame0.pt
+  Final training accuracy:    99.98%
+  Resulting SegNet loss term (100 * distortion): 0.0219
+  Loss plot saved to:         experiments/frame0_test/trial_48/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_48/recon/
+  History npz saved to:       experiments/frame0_test/trial_48/history.npz
+
+
+========================================
+
+=== TRIAL 49 REPORT ===
+=== Trial 49 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 128
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_49/frame0.pt
+  Final training accuracy:    99.98%
+  Resulting SegNet loss term (100 * distortion): 0.0234
+  Loss plot saved to:         experiments/frame0_test/trial_49/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_49/recon/
+  History npz saved to:       experiments/frame0_test/trial_49/history.npz
+
+
+========================================
+
+=== TRIAL 50 REPORT ===
+=== Trial 50 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 256
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_50/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0000
+  Loss plot saved to:         experiments/frame0_test/trial_50/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_50/recon/
+  History npz saved to:       experiments/frame0_test/trial_50/history.npz
+
+
+========================================
+
+=== TRIAL 51 REPORT ===
+=== Trial 51 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 256
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_51/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0000
+  Loss plot saved to:         experiments/frame0_test/trial_51/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_51/recon/
+  History npz saved to:       experiments/frame0_test/trial_51/history.npz
+
+
+========================================
+
+=== TRIAL 52 REPORT ===
+=== Trial 52 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 256
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_52/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0000
+  Loss plot saved to:         experiments/frame0_test/trial_52/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_52/recon/
+  History npz saved to:       experiments/frame0_test/trial_52/history.npz
+
+
+========================================
+
+=== TRIAL 53 REPORT ===
+=== Trial 53 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 256
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_53/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0000
+  Loss plot saved to:         experiments/frame0_test/trial_53/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_53/recon/
+  History npz saved to:       experiments/frame0_test/trial_53/history.npz
+
+
+========================================
+
+=== TRIAL 54 REPORT ===
+=== Trial 54 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 256
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_54/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0000
+  Loss plot saved to:         experiments/frame0_test/trial_54/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_54/recon/
+  History npz saved to:       experiments/frame0_test/trial_54/history.npz
+
+
+========================================
+
+=== TRIAL 55 REPORT ===
+=== Trial 55 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 256
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_55/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0000
+  Loss plot saved to:         experiments/frame0_test/trial_55/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_55/recon/
+  History npz saved to:       experiments/frame0_test/trial_55/history.npz
+
+
+========================================
+
+=== TRIAL 56 REPORT ===
+=== Trial 56 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 256
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_56/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0010
+  Loss plot saved to:         experiments/frame0_test/trial_56/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_56/recon/
+  History npz saved to:       experiments/frame0_test/trial_56/history.npz
+
+
+========================================
+
+=== TRIAL 57 REPORT ===
+=== Trial 57 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 256
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_57/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0000
+  Loss plot saved to:         experiments/frame0_test/trial_57/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_57/recon/
+  History npz saved to:       experiments/frame0_test/trial_57/history.npz
+
+
+========================================
+
+=== TRIAL 58 REPORT ===
+=== Trial 58 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 256
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_58/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0000
+  Loss plot saved to:         experiments/frame0_test/trial_58/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_58/recon/
+  History npz saved to:       experiments/frame0_test/trial_58/history.npz
+
+
+========================================
+
+=== TRIAL 59 REPORT ===
+=== Trial 59 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 256
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_59/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0005
+  Loss plot saved to:         experiments/frame0_test/trial_59/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_59/recon/
+  History npz saved to:       experiments/frame0_test/trial_59/history.npz
+
+
+========================================
+
+=== TRIAL 60 REPORT ===
+=== Trial 60 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 512
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_60/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0000
+  Loss plot saved to:         experiments/frame0_test/trial_60/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_60/recon/
+  History npz saved to:       experiments/frame0_test/trial_60/history.npz
+
+
+========================================
+
+=== TRIAL 61 REPORT ===
+=== Trial 61 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 512
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_61/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0000
+  Loss plot saved to:         experiments/frame0_test/trial_61/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_61/recon/
+  History npz saved to:       experiments/frame0_test/trial_61/history.npz
+
+
+========================================
+
+=== TRIAL 62 REPORT ===
+=== Trial 62 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 512
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_62/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0000
+  Loss plot saved to:         experiments/frame0_test/trial_62/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_62/recon/
+  History npz saved to:       experiments/frame0_test/trial_62/history.npz
+
+
+========================================
+
+=== TRIAL 63 REPORT ===
+=== Trial 63 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 512
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_63/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0000
+  Loss plot saved to:         experiments/frame0_test/trial_63/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_63/recon/
+  History npz saved to:       experiments/frame0_test/trial_63/history.npz
+
+
+========================================
+
+=== TRIAL 64 REPORT ===
+=== Trial 64 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 512
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_64/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0000
+  Loss plot saved to:         experiments/frame0_test/trial_64/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_64/recon/
+  History npz saved to:       experiments/frame0_test/trial_64/history.npz
+
+
+========================================
+
+=== TRIAL 65 REPORT ===
+=== Trial 65 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 512
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_65/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0000
+  Loss plot saved to:         experiments/frame0_test/trial_65/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_65/recon/
+  History npz saved to:       experiments/frame0_test/trial_65/history.npz
+
+
+========================================
+
+=== TRIAL 66 REPORT ===
+=== Trial 66 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 512
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_66/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0000
+  Loss plot saved to:         experiments/frame0_test/trial_66/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_66/recon/
+  History npz saved to:       experiments/frame0_test/trial_66/history.npz
+
+
+========================================
+
+=== TRIAL 67 REPORT ===
+=== Trial 67 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 512
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_67/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0000
+  Loss plot saved to:         experiments/frame0_test/trial_67/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_67/recon/
+  History npz saved to:       experiments/frame0_test/trial_67/history.npz
+
+
+========================================
+
+=== TRIAL 68 REPORT ===
+=== Trial 68 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 512
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_68/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0000
+  Loss plot saved to:         experiments/frame0_test/trial_68/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_68/recon/
+  History npz saved to:       experiments/frame0_test/trial_68/history.npz
+
+
+========================================
+
+=== TRIAL 69 REPORT ===
+=== Trial 69 / 69 ===
+Training on device: cuda
+Command run: python scripts/test_frame.py -f 8 16 32 64 128 256 512 -n 10
+=== Configuration ===
+Model Architecture:
+  - Model Type: WIRE
+  - in_features: 2 (2D coordinates)
+  - out_features: 5 (5-class SegNet logits)
+  - hidden_features (width): 512
+  - hidden_layers (depth): 3
+  - complex_weights: False
+  - init_type: siren
+Gabor Parameters:
+  - omega0: 20.0
+  - s0: 10.0
+Training Settings:
+  - epochs: 1000
+  - batch_size: 196608
+  - learning_rate: 0.005
+  - optimizer: Adam
+  - criterion: CrossEntropyLoss
+  - use_scheduler: False
+=================================
+
+
+Done! SegNet fitting completed.
+  Model weights saved to:     experiments/frame0_test/trial_69/frame0.pt
+  Final training accuracy:    100.00%
+  Resulting SegNet loss term (100 * distortion): 0.0000
+  Loss plot saved to:         experiments/frame0_test/trial_69/loss.png
+  Reconstructed masks saved:  experiments/frame0_test/trial_69/recon/
+  History npz saved to:       experiments/frame0_test/trial_69/history.npz
+
+
+========================================
+
