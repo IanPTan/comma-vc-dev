@@ -57,6 +57,7 @@ def encode_archive(
     shader: ViewDependentShader | None = None,
     codec: GaussianCodec | None = None,
     output_path: Path | None = None,
+    n_frames: int = N_FRAMES,
 ) -> bytes:
     codec = codec or GaussianCodec()
 
@@ -73,6 +74,7 @@ def encode_archive(
         "shader": ({"hidden": shader.net[0].out_features}
                    if shader is not None else None),
         "has_shader": shader is not None,
+        "n_frames": n_frames,
     }
 
     buf = io.BytesIO()

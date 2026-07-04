@@ -58,6 +58,7 @@ def render_all_frames(
     n_frames: int = N_FRAMES,
     device: str = "cuda",
 ) -> None:
+    """Render each frame as an individual .npy file. Debug / inspection use."""
     from .rasterizer import render
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -73,6 +74,37 @@ def render_all_frames(
         np.save(output_dir / f"frame_{i:05d}.npy", arr)
         if i % 100 == 0:
             print(f"[inflate] rendered {i}/{n_frames}")
+
+
+def render_to_raw(
+    scene: SceneRepresentation,
+    pose_inr: EgoPoseINR,
+    dst_path: Path,
+    n_frames: int = N_FRAMES,
+    device: str = "cuda",
+) -> int:
+    """Render every frame and write as a single flat uint8 RGB stream.
+
+    Matches the challenge submission format: a `.raw` file that is the
+    concatenation of every frame's uint8 (H, W, 3) bytes, no header.
+    """
+    from .rasterizer import render
+
+    K = torch.tensor(intrinsics(), dtype=torch.float32, device=device)
+    scene.to(device)
+    pose_inr.to(device)
+    dst_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(dst_path, "wb") as f:
+        for i in range(n_frames):
+            t_norm = torch.tensor(i / max(n_frames - 1, 1), device=device)
+            viewmat = pose_inr.viewmat(t_norm)
+            image = render(scene, t_norm, viewmat, K, CAMERA_W, CAMERA_H)
+            arr = (image.clamp(0, 1) * 255).to(torch.uint8).cpu().numpy()
+            f.write(arr.tobytes())
+            if i % 100 == 0:
+                print(f"[render_to_raw] {i}/{n_frames}")
+    return n_frames
 
 
 def main() -> None:
