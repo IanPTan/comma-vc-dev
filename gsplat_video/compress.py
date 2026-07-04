@@ -2,7 +2,7 @@
 
 Pipeline:
   1. Load frames from videos/0.mkv.
-  2. Bootstrap initial Gaussian positions (Phase 1 gap: currently random init).
+  2. (Optional) Bootstrap initial Gaussian positions from monocular depth.
   3. Train SceneRepresentation + EgoPoseINR against score-shaped loss.
   4. Quantize per-population + pack into archive.zip.
 
@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import pickle
 import zipfile
 from dataclasses import asdict
 from pathlib import Path
@@ -28,10 +29,6 @@ from .pose_inr import EgoPoseINR
 from .shader import ViewDependentShader
 
 
-# ---------------------------------------------------------------------------
-# Scene initialization.  Phase 1 will replace random init with COLMAP +
-# Depth-Anything-V2 seeded positions.
-# ---------------------------------------------------------------------------
 def make_initial_scene(
     n_road: int = 500,
     n_sky: int = 200,
@@ -54,9 +51,6 @@ def make_initial_scene(
     )
 
 
-# ---------------------------------------------------------------------------
-# Archive bundling.
-# ---------------------------------------------------------------------------
 def encode_archive(
     scene: SceneRepresentation,
     pose_inr: EgoPoseINR,
@@ -98,26 +92,62 @@ def encode_archive(
     return blob
 
 
-def main() -> None:
+def encode_from_checkpoint(ckpt_path: Path, output_path: Path,
+                           make_scene_fn=make_initial_scene) -> bytes:
+    """Rebuild scene from a trained checkpoint and pack into archive.zip."""
+    scene = make_scene_fn()
+    ckpt = torch.load(ckpt_path, map_location="cpu")
+    scene.load_state_dict(ckpt["scene_state_dict"])
+    pose_cfg = ckpt.get("pose_inr_config", {})
+    pose_inr = EgoPoseINR(**{k: v for k, v in pose_cfg.items()
+                             if k in {"hidden", "n_freqs"}})
+    pose_inr.load_state_dict(ckpt["pose_inr_state_dict"])
+    return encode_archive(scene, pose_inr, output_path=output_path)
+
+
+def _cli() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--video", type=Path, default=Path("videos/0.mkv"))
     ap.add_argument("--output", type=Path,
                     default=Path("submissions/gsplat_v0/archive.zip"))
     ap.add_argument("--steps", type=int, default=30_000)
-    ap.add_argument("--skip-training", action="store_true",
-                    help="Encode an untrained scene (useful for format testing).")
+    ap.add_argument("--skip-training", action="store_true")
+    ap.add_argument("--from-checkpoint", type=Path,
+                    help="Skip training and encode from an existing ckpt_XXXXXX.pt.")
+    ap.add_argument("--bootstrap-from", type=Path,
+                    help="Pickle produced by scripts/bootstrap_scene.py.")
+    ap.add_argument("--output-dir", type=Path,
+                    default=Path("outputs/gsplat_train"))
     args = ap.parse_args()
+
+    if args.from_checkpoint is not None:
+        blob = encode_from_checkpoint(args.from_checkpoint, args.output)
+        print(f"[compress] wrote {args.output} ({len(blob):,} bytes) from "
+              f"{args.from_checkpoint}")
+        return
 
     scene = make_initial_scene()
     pose_inr = EgoPoseINR()
 
-    if not args.skip_training:
-        raise NotImplementedError(
-            "Training pipeline not wired yet — use --skip-training to test the "
-            "encode format only.")
+    if args.skip_training:
+        blob = encode_archive(scene, pose_inr, shader=None, output_path=args.output)
+        print(f"[compress] wrote {args.output} ({len(blob):,} bytes) [untrained]")
+        return
 
-    blob = encode_archive(scene, pose_inr, shader=None, output_path=args.output)
+    from .dataset import VideoFrameDataset
+    from .train import TrainConfig, train
+
+    ds = VideoFrameDataset(args.video)
+    cfg = TrainConfig(steps=args.steps, output_dir=args.output_dir)
+    stats = train(scene, pose_inr, ds, cfg, bootstrap_from=args.bootstrap_from)
+
+    blob = encode_archive(scene, pose_inr, output_path=args.output)
     print(f"[compress] wrote {args.output} ({len(blob):,} bytes)")
+    print(f"[compress] final val: {stats.get('final_val')}")
+
+
+def main() -> None:
+    _cli()
 
 
 if __name__ == "__main__":
