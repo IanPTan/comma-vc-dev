@@ -53,15 +53,19 @@ def main() -> None:
 
     K = torch.tensor(intrinsics(), dtype=torch.float32, device=device)
 
-    # Bias the pose INR so t=0 renders from an intuitive camera pose:
-    # +x forward driving; camera at origin looking along +x with +z up.
-    # Our pose INR outputs are noise-initialized. For a first render we just
-    # override the viewmat to a fixed identity-ish pose so we see what the
-    # untrained Gaussian scene looks like from a reasonable viewpoint.
-    R = torch.tensor([[1., 0., 0.],
-                      [0., 0., -1.],  # camera y-down convention
-                      [0., 1., 0.]], device=device)
-    t_vec = torch.tensor([0., 0., 1.5], device=device)  # eye at 1.5m above ground
+    # Override the untrained pose INR with a fixed dashcam viewpoint at t=0.
+    # World frame is driving (+x forward, +y left, +z up).
+    # gsplat expects world-to-camera in the OpenCV convention (+x right,
+    # +y down, +z forward).  For a dashcam at world (0, 0, 1.5) looking
+    # forward:
+    #     world +x (forward) -> camera +z
+    #     world +y (left)    -> camera -x
+    #     world +z (up)      -> camera -y
+    R = torch.tensor([[0., -1.,  0.],
+                      [0.,  0., -1.],
+                      [1.,  0.,  0.]], device=device)
+    camera_pos_world = torch.tensor([0., 0., 1.5], device=device)
+    t_vec = -R @ camera_pos_world           # world-to-camera translation
     viewmat = torch.eye(4, device=device)
     viewmat[0:3, 0:3] = R
     viewmat[0:3, 3] = t_vec
