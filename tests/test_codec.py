@@ -1,13 +1,15 @@
-"""Codec smoke tests: rate math, STE gradients, byte round-trip."""
+"""Codec smoke tests: rate math, STE gradients, module + scene roundtrip."""
 from __future__ import annotations
 
 import numpy as np
 import torch
 
 from gsplat_video.codec import (BASELINE_ORIGINAL_BYTES, BitsConfig,
-                                GaussianCodec, ste_quantize)
+                                GaussianCodec, pack_module, pack_scene,
+                                ste_quantize, unpack_module, unpack_scene)
 from gsplat_video.populations import (DynamicActor, RoadPlane, RoadsideBand,
                                       SceneRepresentation, SkyDome)
+from gsplat_video.pose_inr import EgoPoseINR
 
 
 def _scene(road_n=500, sky_n=200, road_side_n=2000, actors=100) -> SceneRepresentation:
@@ -22,81 +24,81 @@ def _scene(road_n=500, sky_n=200, road_side_n=2000, actors=100) -> SceneRepresen
 
 def test_bits_per_gaussian():
     b = BitsConfig()
-    # 3*12 + 3*8 + 4*8 + 6 + 3*8 = 36+24+32+6+24 = 122
-    assert b.bits_per_gaussian() == 122
+    assert b.bits_per_gaussian() == 122        # 3*12 + 3*8 + 4*8 + 6 + 3*8
     print(f"[ok] bits_per_gaussian = {b.bits_per_gaussian()}")
 
 
 def test_rate_estimate_target_range():
-    """Confirm our design lands in the 60-150 KB rate window we projected."""
     codec = GaussianCodec()
-    n = 500 + 200 + 2000 + 5 * 100  # matches the pitch's numbers
-    extra = 3_000 + 3_000            # pose INR + shader
+    n = 500 + 200 + 2000 + 5 * 100
+    extra = 6_000                              # pose INR + shader
     r = codec.rate(n_gaussians=n, extra_bytes=extra)
-    bytes_est = r * BASELINE_ORIGINAL_BYTES
-    kb = bytes_est / 1024
-    print(f"[ok] projected archive: {kb:.1f} KB, rate = {r:.5f}, 25*rate = {25*r:.4f}")
-    assert 40 < kb < 200, f"design outside expected window: {kb:.1f} KB"
+    kb = r * BASELINE_ORIGINAL_BYTES / 1024
+    print(f"[ok] projected archive: {kb:.1f} KB, rate={r:.5f}, 25*rate={25*r:.4f}")
+    assert 40 < kb < 200
 
 
 def test_ste_quantize_gradient():
     x = torch.linspace(-1.0, 1.0, 100, requires_grad=True)
-    y, _range = ste_quantize(x, num_bits=8)
-    loss = y.square().sum()
-    loss.backward()
+    y, _ = ste_quantize(x, num_bits=8)
+    y.square().sum().backward()
     assert x.grad is not None and torch.isfinite(x.grad).all()
-    # Quantized values should be within one quantization step of original.
     max_err = (y - x).detach().abs().max().item()
     step = 2.0 / (2**8 - 1)
-    assert max_err < step, f"quantization error {max_err} exceeds step {step}"
+    assert max_err < step
     print(f"[ok] STE gradients flow; max quant error {max_err:.5f} < step {step:.5f}")
 
 
 def test_ste_gradient_pass_through():
-    """STE must let gradients pass through as identity."""
     x = torch.randn(50, requires_grad=True)
-    y, _r = ste_quantize(x, num_bits=6)
+    y, _ = ste_quantize(x, num_bits=6)
     y.sum().backward()
-    assert torch.allclose(x.grad, torch.ones_like(x)), "STE should pass identity grad"
+    assert torch.allclose(x.grad, torch.ones_like(x))
     print("[ok] STE grad passes through as identity")
 
 
-def test_encode_decode_roundtrip():
+def test_pack_module_roundtrip():
+    """pack_module + unpack_module preserves an MLP within INT8 tolerance."""
     torch.manual_seed(0)
-    scene = _scene(road_n=50, sky_n=20, road_side_n=100, actors=10)
-    raw = scene.gaussians(torch.tensor(0.0))
-    codec = GaussianCodec()
-    blob = codec.encode_scene(raw)
-    restored = codec.decode_scene(blob)
-    for k in ["means", "scales", "quats", "opacities", "colors"]:
-        orig = raw[k].detach().cpu().numpy()
-        rec = restored[k]
-        # Values should be within one quantization step of original.
-        span = float(orig.max() - orig.min())
-        bits = getattr(codec.bits, k)
-        step = span / (2**bits - 1) if span > 0 else 1e-6
-        err = np.abs(rec.reshape(orig.shape) - orig).max()
-        assert err <= step + 1e-5, f"{k}: err {err} > step {step}"
-        print(f"[ok] roundtrip {k}: shape {orig.shape}, max err {err:.6f} <= step {step:.6f}")
-    print(f"[ok] archive size: {len(blob)} bytes (uncompressed by brotli)")
+    m = EgoPoseINR(hidden=32, n_freqs=8)
+    payload, header = pack_module(m, num_bits=8)
+
+    m2 = EgoPoseINR(hidden=32, n_freqs=8)
+    unpack_module(m2, payload, header)
+
+    for (n1, p1), (n2, p2) in zip(m.state_dict().items(), m2.state_dict().items()):
+        assert n1 == n2
+        span = (p1.max() - p1.min()).item()
+        step = span / 255 if span > 0 else 1e-4
+        err = (p1 - p2).abs().max().item()
+        assert err <= step + 1e-4, f"{n1}: err {err} > step {step}"
+    print(f"[ok] pack_module roundtrip: payload {len(payload)} bytes")
 
 
-def test_encode_size_matches_estimate():
-    """Encoded byte count should track the rate estimate closely."""
+def test_pack_scene_roundtrip_preserves_actor_motion():
+    """pack_scene + unpack_scene preserves DynamicActor trajectory motion."""
     torch.manual_seed(42)
-    n_g = 200
-    scene = _scene(road_n=50, sky_n=20, road_side_n=100, actors=6)  # actors have m=5 each
-    assert scene.total_count() == n_g
-    raw = scene.gaussians(torch.tensor(0.0))
-    codec = GaussianCodec()
-    actual_bytes = len(codec.encode_scene(raw))
-    # No entropy coding factor here, just header + packed bits.
-    projected_bytes = int(codec.rate(n_g, extra_bytes=0, include_ec_factor=False)
-                          * BASELINE_ORIGINAL_BYTES)
-    # Actual will be slightly larger due to header. Should be within ~100 bytes.
-    print(f"[ok] size check: actual {actual_bytes} vs projected {projected_bytes}")
-    assert abs(actual_bytes - projected_bytes) < 200, \
-        f"size mismatch: actual {actual_bytes} vs projected {projected_bytes}"
+    actor = DynamicActor(m_per_cluster=4, traj_degree=2, t_range=(0, 60),
+                         initial_center=(10.0, 0.0, 1.0))
+    with torch.no_grad():
+        actor.traj_coeffs[1, 0] = 5.0
+
+    scene = SceneRepresentation(
+        road=RoadPlane(n=5, x_range=(0, 60), y_range=(-5, 5)),
+        sky=SkyDome(n=5, radius=500.0),
+        roadside_left=RoadsideBand(n=5, s_range=(0, 60), side="left"),
+        roadside_right=RoadsideBand(n=5, s_range=(0, 60), side="right"),
+        actors=[actor],
+    )
+    payload, header = pack_scene(scene, num_bits=8)
+    scene2 = unpack_scene(payload, header)
+
+    dx_orig = (scene.gaussians(torch.tensor(60.0))["means"][-4:].mean(0)
+               - scene.gaussians(torch.tensor(0.0))["means"][-4:].mean(0))[0].item()
+    dx_r = (scene2.gaussians(torch.tensor(60.0))["means"][-4:].mean(0)
+            - scene2.gaussians(torch.tensor(0.0))["means"][-4:].mean(0))[0].item()
+    print(f"[ok] pack_scene actor motion: orig dx={dx_orig:.3f}, roundtrip dx={dx_r:.3f}")
+    assert abs(dx_orig - dx_r) < 0.2
 
 
 def main():
@@ -105,8 +107,8 @@ def main():
         test_rate_estimate_target_range,
         test_ste_quantize_gradient,
         test_ste_gradient_pass_through,
-        test_encode_decode_roundtrip,
-        test_encode_size_matches_estimate,
+        test_pack_module_roundtrip,
+        test_pack_scene_roundtrip_preserves_actor_motion,
     ]
     for fn in tests:
         fn()

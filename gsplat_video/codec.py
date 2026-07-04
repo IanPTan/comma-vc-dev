@@ -1,49 +1,46 @@
-"""Codec: quantization, differentiable rate estimation, byte-level encode/decode.
+"""Codec: per-population quantization + differentiable rate estimation.
 
-The archive is dominated by Gaussian parameters. We quantize each parameter
-group with its own bit width (chosen by sensitivity, similar to LightGaussian),
-STE for gradient flow during training, and pack to bytes at export time.
+Each Gaussian population owns its own native parameter tensors (RoadPlane.uv,
+SkyDome.dir, etc.); DynamicActor also carries trajectory coefficients so its
+Gaussians move with time.
 
-Rate model for training:
-    - Uniform-bits rate = N_gaussians * bits_per_gaussian.  Constant w.r.t. the
-      Gaussian *values*, so this term does not directly train the Gaussian
-      values — but it DOES train the number of Gaussians via opacity-based
-      pruning (small opacity -> Gaussian gets dropped, reducing N).
-    - Compression factor accounts for downstream entropy coding (brotli/zstd
-      typically achieve ~30% reduction on quantized weight streams).
+Rather than projecting everything to a single flat Gaussian block at t=0
+(which would lose actor motion), the codec serializes each population's
+state_dict separately and stores the constructor args to rebuild them at
+decode.  Rendering at time t then calls `scene.gaussians(t)` which reproduces
+the correct time-varying positions.
 
-Archive layout (v0):
-    header: BitsConfig + population sizes + per-tensor (min, max) ranges
-    payload: bit-packed quantized values, concatenated by group
-
-TODO: swap uniform bits for a learned entropy model once we have real weights
-to profile. That gives us a differentiable rate that also trains the values.
+Archive layout:
+    scene_cfg.json    : population sizes + constructor args + bits config
+    populations.bin   : concatenated INT8-quantized state dicts + shapes
+    pose_inr.{bin,json} : tiny MLP weights
+    shader.{bin,json}   : tiny MLP weights, optional
 """
 from __future__ import annotations
 
 import struct
-from dataclasses import asdict, dataclass, field, fields
-from typing import Iterable
+from dataclasses import asdict, dataclass
+from typing import Any
 
 import numpy as np
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 
-# From the baseline evaluate.sh report: uncompressed size of videos/0.mkv
+# From the baseline evaluate.sh report.
 BASELINE_ORIGINAL_BYTES = 37_545_489
 
-# Empirical assumption: brotli/zstd shave ~25% off a uniformly-quantized stream.
-# Tune once we measure real archive sizes.
+# Empirical estimate: brotli/zstd shaves ~25% off an INT8 stream. Tune once we
+# have real archive sizes.
 ENTROPY_CODING_COMPRESSION_FACTOR = 0.75
 
 
 @dataclass
 class BitsConfig:
-    means: int = 12       # 3D positions need more precision
-    scales: int = 8       # log-scales; 256 levels plenty
-    quats: int = 8        # unit quaternions
-    opacities: int = 6    # bimodal distribution, few bits enough
-    colors: int = 8       # 8-bit RGB standard
+    means: int = 12
+    scales: int = 8
+    quats: int = 8
+    opacities: int = 6
+    colors: int = 8
 
     def bits_per_gaussian(self) -> int:
         return (3 * self.means + 3 * self.scales + 4 * self.quats
@@ -56,14 +53,13 @@ class TensorRange:
     max: float
 
 
+# ---------------------------------------------------------------------------
+# STE quantization (used during training so the loss sees quantized values).
+# ---------------------------------------------------------------------------
 def ste_quantize(x: Tensor, num_bits: int,
-                 x_min: Tensor | float | None = None,
-                 x_max: Tensor | float | None = None) -> tuple[Tensor, TensorRange]:
-    """Straight-through-estimator uniform quantization.
-
-    Returns the STE-quantized tensor (forward: quantized value, backward:
-    identity through) and the range used, so the encoder can save it.
-    """
+                 x_min: float | None = None,
+                 x_max: float | None = None) -> tuple[Tensor, TensorRange]:
+    """Straight-through-estimator uniform quantization."""
     if x_min is None:
         x_min = x.detach().min().item()
     if x_max is None:
@@ -80,12 +76,53 @@ def ste_quantize(x: Tensor, num_bits: int,
     return x + (x_hat - x).detach(), TensorRange(min=float(x_min), max=float(x_max))
 
 
-class GaussianCodec:
-    """Per-group quantization + rate estimation + byte round-trip.
+# ---------------------------------------------------------------------------
+# Module-level pack / unpack (works for any nn.Module).
+# ---------------------------------------------------------------------------
+def pack_module(module: nn.Module, num_bits: int = 8) -> tuple[bytes, dict]:
+    """INT-N quantize an entire nn.Module state_dict.
 
-    Instances are stateless w.r.t. optimization — they read/write raw tensors.
-    A codec instance IS shipped in the archive (as the BitsConfig header), so
-    the decoder knows how many bits per group and what ranges to unpack.
+    Returns (payload_bytes, header_dict). Only num_bits == 8 is implemented
+    at the packing level; other widths would need bit-packing (see the
+    Gaussian-attribute path further down for that treatment).
+    """
+    assert num_bits == 8, "only INT8 pack_module implemented; extend if needed"
+    header: dict[str, dict] = {}
+    payload = bytearray()
+    for name, tensor in module.state_dict().items():
+        arr = tensor.detach().cpu().float().numpy().flatten()
+        xmin, xmax = float(arr.min()), float(arr.max())
+        span = max(xmax - xmin, 1e-8)
+        levels = 2 ** num_bits - 1
+        q = np.clip(np.round((arr - xmin) / span * levels), 0, levels).astype(np.uint8)
+        header[name] = {"shape": list(tensor.shape), "min": xmin, "max": xmax,
+                        "bits": num_bits, "count": int(arr.size)}
+        payload.extend(q.tobytes())
+    return bytes(payload), header
+
+
+def unpack_module(module: nn.Module, payload: bytes, header: dict) -> None:
+    p = 0
+    sd = module.state_dict()
+    for name, meta in header.items():
+        count = int(meta["count"])
+        bits = int(meta["bits"])
+        assert bits == 8
+        q = np.frombuffer(payload[p:p + count], dtype=np.uint8).astype(np.float32)
+        p += count
+        span = max(meta["max"] - meta["min"], 1e-8)
+        arr = meta["min"] + q / (2 ** bits - 1) * span
+        sd[name].copy_(torch.from_numpy(arr).reshape(meta["shape"]))
+    module.load_state_dict(sd)
+
+
+# ---------------------------------------------------------------------------
+# Rate estimation used inside the training loss.
+# ---------------------------------------------------------------------------
+class GaussianCodec:
+    """Rate accountant.  Uses BitsConfig to translate Gaussian count into a
+    projected archive size, so the training loss can penalize models that
+    would encode to too many bytes.
     """
 
     def __init__(self, bits: BitsConfig | None = None,
@@ -93,154 +130,104 @@ class GaussianCodec:
         self.bits = bits or BitsConfig()
         self.original_bytes = original_bytes
 
-    # ------------------------------------------------------------------
-    # Rate estimation for the training loss.
-    # ------------------------------------------------------------------
-    def rate(self, n_gaussians: int,
-             extra_bytes: int = 0,
+    def rate(self, n_gaussians: int, extra_bytes: int = 0,
              include_ec_factor: bool = True) -> float:
-        """Rate = archive_bytes / original_bytes, as a plain float.
-
-        n_gaussians   : total Gaussians in the scene
-        extra_bytes   : bytes for pose INR + shader + codebooks + headers
-        include_ec_factor: multiply by ENTROPY_CODING_COMPRESSION_FACTOR
-        """
         bits = n_gaussians * self.bits.bits_per_gaussian()
         raw_bytes = (bits + 7) // 8 + extra_bytes
         est_bytes = raw_bytes * ENTROPY_CODING_COMPRESSION_FACTOR if include_ec_factor else raw_bytes
         return est_bytes / self.original_bytes
 
-    # ------------------------------------------------------------------
-    # STE quantization applied to a scene's raw Gaussian dict.
-    # ------------------------------------------------------------------
-    def quantize_scene(self, raw: dict[str, Tensor]) -> tuple[dict[str, Tensor], dict[str, TensorRange]]:
-        """Return (quantized_params, per-group ranges).
 
-        `raw` must be the dict from SceneRepresentation.gaussians(t) — raw
-        pre-activation parameters. Ranges come out per-group as a single
-        TensorRange each (per-tensor quantization for simplicity).
-        """
-        q, ranges = {}, {}
-        for name, bits in [("means", self.bits.means),
-                          ("scales", self.bits.scales),
-                          ("quats", self.bits.quats),
-                          ("opacities", self.bits.opacities),
-                          ("colors", self.bits.colors)]:
-            q[name], ranges[name] = ste_quantize(raw[name], bits)
-        return q, ranges
+# ---------------------------------------------------------------------------
+# Helpers to serialize a whole SceneRepresentation as structured populations.
+# ---------------------------------------------------------------------------
+def pack_scene(scene, num_bits: int = 8) -> tuple[bytes, dict]:
+    """Serialize each population's parameters separately.
 
-    # ------------------------------------------------------------------
-    # Byte packing for the actual archive.
-    # ------------------------------------------------------------------
-    def encode_scene(self, raw: dict[str, Tensor]) -> bytes:
-        """Serialize a scene to bytes. Header + bit-packed values.
+    Returns (payload, header) where header maps population name to
+    {constructor_args, module_header}.
+    """
+    parts: list[bytes] = []
+    header: dict[str, Any] = {"num_bits": num_bits, "populations": {}}
+    for name in ("road", "sky", "roadside_left", "roadside_right"):
+        pop = getattr(scene, name)
+        payload_i, hdr_i = pack_module(pop, num_bits)
+        parts.append(payload_i)
+        header["populations"][name] = {
+            "ctor": _ctor_args(pop),
+            "kind": type(pop).__name__,
+            "module_header": hdr_i,
+            "payload_len": len(payload_i),
+        }
+    # Actors are a list -> pack each with an index in the name.
+    header["populations"]["actors"] = []
+    for i, actor in enumerate(scene.actors):
+        payload_i, hdr_i = pack_module(actor, num_bits)
+        parts.append(payload_i)
+        header["populations"]["actors"].append({
+            "ctor": _ctor_args(actor),
+            "kind": type(actor).__name__,
+            "module_header": hdr_i,
+            "payload_len": len(payload_i),
+        })
+    return b"".join(parts), header
 
-        Layout:
-            uint8   version = 0
-            5 x uint8 : bits per group (means, scales, quats, opacities, colors)
-            5 x (float32 min, float32 max) : per-group ranges
-            uint32 : n_gaussians
-            uint32 : payload byte length
-            bytes  : packed payload
-        """
-        n = raw["means"].shape[0]
-        header = bytearray()
-        header.append(0)  # version
-        header.extend(struct.pack("BBBBB",
-                                  self.bits.means, self.bits.scales,
-                                  self.bits.quats, self.bits.opacities,
-                                  self.bits.colors))
 
-        payload_bits: list[int] = []
-        for name, bits in [("means", self.bits.means),
-                          ("scales", self.bits.scales),
-                          ("quats", self.bits.quats),
-                          ("opacities", self.bits.opacities),
-                          ("colors", self.bits.colors)]:
-            x = raw[name].detach().cpu()
-            xmin, xmax = float(x.min()), float(x.max())
-            header.extend(struct.pack("ff", xmin, xmax))
-            span = max(xmax - xmin, 1e-8)
-            levels = 2 ** bits - 1
-            x_norm = ((x - xmin) / span).clamp(0, 1)
-            q = torch.round(x_norm * levels).to(torch.int64).flatten().tolist()
-            payload_bits.extend(_int_to_bits(v, bits) for v in q)
+def unpack_scene(payload: bytes, header: dict):
+    """Rebuild a SceneRepresentation from a packed scene payload."""
+    from .populations import (DynamicActor, RoadPlane, RoadsideBand,
+                              SceneRepresentation, SkyDome)
 
-        header.extend(struct.pack("II", n, sum(len(b) for b in payload_bits)))
-        payload_bytes = _pack_bits(_flatten(payload_bits))
-        return bytes(header) + payload_bytes
+    KIND_MAP = {"RoadPlane": RoadPlane, "SkyDome": SkyDome,
+                "RoadsideBand": RoadsideBand, "DynamicActor": DynamicActor}
+    p = 0
 
-    def decode_scene(self, blob: bytes) -> dict[str, np.ndarray]:
-        """Inverse of encode_scene. Returns numpy arrays keyed by group."""
-        p = 0
-        version = blob[p]; p += 1
-        assert version == 0, f"unknown codec version {version}"
-        bits_means, bits_scales, bits_quats, bits_opac, bits_cols = \
-            struct.unpack_from("BBBBB", blob, p)
-        p += 5
-        ranges: dict[str, tuple[float, float]] = {}
-        for name in ("means", "scales", "quats", "opacities", "colors"):
-            xmin, xmax = struct.unpack_from("ff", blob, p)
-            p += 8
-            ranges[name] = (xmin, xmax)
-        n, _ = struct.unpack_from("II", blob, p)
-        p += 8
-        payload = blob[p:]
+    def _next(pop_header: dict, cls_map=KIND_MAP):
+        nonlocal p
+        cls = cls_map[pop_header["kind"]]
+        pop = cls(**_normalize_ctor(pop_header["ctor"]))
+        length = pop_header["payload_len"]
+        unpack_module(pop, payload[p:p + length], pop_header["module_header"])
+        p += length
+        return pop
 
-        # Read bits in the same order we wrote them.
-        stream = _unpack_bits(payload)
-        cursor = [0]
-        out: dict[str, np.ndarray] = {}
-        for name, bits, shape in [
-                ("means", bits_means, (n, 3)),
-                ("scales", bits_scales, (n, 3)),
-                ("quats", bits_quats, (n, 4)),
-                ("opacities", bits_opac, (n,)),
-                ("colors", bits_cols, (n, 3)),
-                ]:
-            flat_count = int(np.prod(shape))
-            values = np.empty(flat_count, dtype=np.float32)
-            xmin, xmax = ranges[name]
-            span = max(xmax - xmin, 1e-8)
-            levels = 2 ** bits - 1
-            for i in range(flat_count):
-                v = _read_bits(stream, cursor, bits)
-                values[i] = xmin + (v / levels) * span
-            out[name] = values.reshape(shape)
-        return out
+    road = _next(header["populations"]["road"])
+    sky = _next(header["populations"]["sky"])
+    left = _next(header["populations"]["roadside_left"])
+    right = _next(header["populations"]["roadside_right"])
+    actors = [_next(a) for a in header["populations"]["actors"]]
+
+    return SceneRepresentation(road=road, sky=sky, roadside_left=left,
+                               roadside_right=right, actors=actors)
 
 
 # ---------------------------------------------------------------------------
-# Bit-packing helpers.
+# Constructor-args extraction / normalization for each population type.
 # ---------------------------------------------------------------------------
-def _int_to_bits(v: int, n: int) -> list[int]:
-    return [(v >> (n - 1 - i)) & 1 for i in range(n)]
+def _ctor_args(pop) -> dict:
+    """Extract the constructor args we need to rebuild `pop`.
+
+    We don't try to be fully generic — just cover the four population types.
+    """
+    from .populations import (DynamicActor, RoadPlane, RoadsideBand, SkyDome)
+    if isinstance(pop, RoadPlane):
+        return {"n": pop.n, "x_range": list(pop.x_range), "y_range": list(pop.y_range)}
+    if isinstance(pop, SkyDome):
+        return {"n": pop.n, "radius": pop.radius}
+    if isinstance(pop, RoadsideBand):
+        return {"n": pop.n, "s_range": list(pop.s_range),
+                "w_range": list(pop.w_range), "h_range": list(pop.h_range),
+                "side": "left" if pop.side_sign > 0 else "right"}
+    if isinstance(pop, DynamicActor):
+        return {"m_per_cluster": pop.m, "traj_degree": pop.degree,
+                "t_range": [pop.t_min, pop.t_max]}
+    raise TypeError(f"unknown population type {type(pop)!r}")
 
 
-def _flatten(list_of_lists: Iterable[list[int]]) -> list[int]:
-    out: list[int] = []
-    for xs in list_of_lists:
-        out.extend(xs)
-    return out
-
-
-def _pack_bits(bits: list[int]) -> bytes:
-    out = bytearray((len(bits) + 7) // 8)
-    for i, b in enumerate(bits):
-        if b:
-            out[i >> 3] |= 1 << (7 - (i & 7))
-    return bytes(out)
-
-
-def _unpack_bits(blob: bytes) -> bytes:
-    return blob
-
-
-def _read_bits(stream: bytes, cursor: list[int], n: int) -> int:
-    v = 0
-    for _ in range(n):
-        i = cursor[0]
-        bit = (stream[i >> 3] >> (7 - (i & 7))) & 1
-        v = (v << 1) | bit
-        cursor[0] += 1
-    return v
+def _normalize_ctor(d: dict) -> dict:
+    """JSON round-trip converts tuples to lists; convert range fields back."""
+    d = dict(d)
+    for k in ("x_range", "y_range", "s_range", "w_range", "h_range", "t_range"):
+        if k in d and isinstance(d[k], list):
+            d[k] = tuple(d[k])
+    return d

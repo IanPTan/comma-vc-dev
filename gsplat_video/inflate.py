@@ -1,15 +1,8 @@
 """Decoder entrypoint. THIS is the file comma runs during evaluation.
 
-Usage (from evaluate.sh):
-    unzip archive.zip -d archive/
-    bash inflate.sh    # -> python -m gsplat_video.inflate archive/ out/
-
-Loads Gaussian primitives + tiny INR weights from archive.zip, rasterizes every
-frame via gsplat, writes decoded frames to `out/`.
-
-We do NOT reconstruct SceneRepresentation / populations at decode: the
-rasterizer accepts raw Gaussian dicts directly. Population structure is a
-training-time abstraction; at inference we just need the primitives.
+Loads per-population parameters + tiny INR weights from archive.zip,
+rebuilds a SceneRepresentation with the correct time-varying trajectories,
+rasterizes every frame via gsplat, writes decoded frames to `out/`.
 """
 from __future__ import annotations
 
@@ -22,72 +15,44 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from .codec import BitsConfig, GaussianCodec
-from .constants import (CAMERA_H, CAMERA_W, FPS, N_FRAMES, intrinsics)
+from .codec import unpack_module, unpack_scene
+from .constants import (CAMERA_H, CAMERA_W, N_FRAMES, intrinsics)
+from .populations import SceneRepresentation
 from .pose_inr import EgoPoseINR
 from .shader import ViewDependentShader
 
 
-# ---------------------------------------------------------------------------
-# Unpack routine (inverse of compress._pack_nn).
-# ---------------------------------------------------------------------------
-def _unpack_nn(module: torch.nn.Module, payload: bytes, header: dict) -> None:
-    p = 0
-    sd = module.state_dict()
-    for name, meta in header.items():
-        count = int(meta["count"])
-        bits = int(meta["bits"])
-        assert bits == 8, "only INT8 unpack implemented"
-        q = np.frombuffer(payload[p:p + count], dtype=np.uint8).astype(np.float32)
-        p += count
-        span = max(meta["max"] - meta["min"], 1e-8)
-        arr = meta["min"] + q / (2 ** bits - 1) * span
-        sd[name].copy_(torch.from_numpy(arr).reshape(meta["shape"]))
-    module.load_state_dict(sd)
-
-
-# ---------------------------------------------------------------------------
-# Load an archive into rasterizer-ready state.
-# ---------------------------------------------------------------------------
-def load_from_archive(archive_bytes: bytes) -> tuple[dict[str, torch.Tensor],
+def load_from_archive(archive_bytes: bytes) -> tuple[SceneRepresentation,
                                                      EgoPoseINR,
                                                      ViewDependentShader | None,
                                                      dict]:
     with zipfile.ZipFile(io.BytesIO(archive_bytes)) as zf:
-        scene_blob = zf.read("scene.bin")
+        pops_blob = zf.read("populations.bin")
         pose_blob = zf.read("pose_inr.bin")
         pose_header = json.loads(zf.read("pose_inr.json"))
         shader_blob = zf.read("shader.bin")
         shader_header = json.loads(zf.read("shader.json"))
         scene_cfg = json.loads(zf.read("scene_cfg.json"))
 
-    codec = GaussianCodec(BitsConfig(**scene_cfg["bits"]))
-    flat = codec.decode_scene(scene_blob)
-
-    # Static Gaussians are already activation-ready (encoder wrote raw
-    # pre-activation values). Convert to tensors; rasterizer applies
-    # softplus/sigmoid/normalize on the raw values.
-    gaussians = {k: torch.from_numpy(v) for k, v in flat.items()}
+    scene = unpack_scene(pops_blob, scene_cfg["scene_header"])
 
     pose_cfg = scene_cfg.get("pose_inr", {})
     pose_inr = EgoPoseINR(**{k: v for k, v in pose_cfg.items()
                              if k in {"hidden", "n_freqs"}})
-    _unpack_nn(pose_inr, pose_blob, pose_header)
+    unpack_module(pose_inr, pose_blob, pose_header)
 
     shader: ViewDependentShader | None = None
     if scene_cfg.get("has_shader", False):
         shader_cfg = scene_cfg.get("shader") or {}
-        shader = ViewDependentShader(**{k: v for k, v in shader_cfg.items() if k == "hidden"})
-        _unpack_nn(shader, shader_blob, shader_header)
+        shader = ViewDependentShader(**{k: v for k, v in shader_cfg.items()
+                                        if k == "hidden"})
+        unpack_module(shader, shader_blob, shader_header)
 
-    return gaussians, pose_inr, shader, scene_cfg
+    return scene, pose_inr, shader, scene_cfg
 
 
-# ---------------------------------------------------------------------------
-# Rendering loop.
-# ---------------------------------------------------------------------------
 def render_all_frames(
-    gaussians: dict[str, torch.Tensor],
+    scene: SceneRepresentation,
     pose_inr: EgoPoseINR,
     output_dir: Path,
     n_frames: int = N_FRAMES,
@@ -97,13 +62,13 @@ def render_all_frames(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     K = torch.tensor(intrinsics(), dtype=torch.float32, device=device)
+    scene.to(device)
     pose_inr.to(device)
-    g_dev = {k: v.to(device) for k, v in gaussians.items()}
 
     for i in range(n_frames):
-        t_norm = torch.tensor(i / (n_frames - 1), device=device)
+        t_norm = torch.tensor(i / max(n_frames - 1, 1), device=device)
         viewmat = pose_inr.viewmat(t_norm)
-        image = render(g_dev, None, viewmat, K, CAMERA_W, CAMERA_H)
+        image = render(scene, t_norm, viewmat, K, CAMERA_W, CAMERA_H)
         arr = (image.clamp(0, 1) * 255).to(torch.uint8).cpu().numpy()
         np.save(output_dir / f"frame_{i:05d}.npy", arr)
         if i % 100 == 0:
@@ -127,8 +92,8 @@ def main() -> None:
                     zf.writestr(p.name, p.read_bytes())
         blob = buf.getvalue()
 
-    gaussians, pose_inr, shader, cfg = load_from_archive(blob)
-    render_all_frames(gaussians, pose_inr, args.output_dir, device=args.device)
+    scene, pose_inr, _, _ = load_from_archive(blob)
+    render_all_frames(scene, pose_inr, args.output_dir, device=args.device)
 
 
 if __name__ == "__main__":
