@@ -30,8 +30,8 @@ def _activate(raw: dict[str, Tensor]) -> dict[str, Tensor]:
     }
 
 
-def render(scene: SceneRepresentation,
-           t: Tensor,
+def render(scene_or_gaussians: SceneRepresentation | dict[str, Tensor],
+           t: Tensor | float | None,
            viewmat: Tensor,        # (4, 4) world -> camera
            K: Tensor,              # (3, 3) intrinsics
            width: int,
@@ -39,7 +39,11 @@ def render(scene: SceneRepresentation,
            near: float = 0.1,
            far: float = 1000.0,
            background: Tensor | None = None) -> Tensor:
-    """Render a single frame at time t from the given camera.
+    """Render a single frame from the given camera.
+
+    First arg may be a SceneRepresentation (in which case `t` is queried) OR
+    a raw Gaussian dict (means/scales/quats/opacities/colors) which is used
+    as-is. The raw-dict path is what inflate.py uses at decode.
 
     Returns:
         image: (H, W, 3) in [0, 1].
@@ -47,7 +51,10 @@ def render(scene: SceneRepresentation,
     if not _HAS_GSPLAT:
         raise RuntimeError("gsplat is not installed. `pip install gsplat` to render.")
 
-    raw = scene.gaussians(t)
+    if isinstance(scene_or_gaussians, dict):
+        raw = scene_or_gaussians
+    else:
+        raw = scene_or_gaussians.gaussians(t if isinstance(t, Tensor) else torch.tensor(t or 0.0))
     g = _activate(raw)
 
     # gsplat expects colors as either RGB (N,3) or SH coefficients (N,K,3).
