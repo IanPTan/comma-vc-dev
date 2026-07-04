@@ -9,7 +9,12 @@ experiments/**/data/
 videos/
 challenge_deps/
 
-# Trained model outputs / submissions
-submissions/
+# Trained model outputs
 runs/
 outputs/
+
+# Trained artifacts inside submission dirs (source is tracked)
+submissions/**/archive.zip
+submissions/**/*.pt
+submissions/**/*.safetensors
+submissions/**/_gsplat_video/
